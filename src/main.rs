@@ -21,6 +21,8 @@ fn app_commands() -> ArgMatches {
                 .number_of_values(1)
                 .value_parser(value_parser!(bool))
                 .default_missing_value("true")
+                .hide_default_value(true)
+                .hide_possible_values(true)
                 .required(false),
         )
         .arg(
@@ -57,6 +59,7 @@ fn app_commands() -> ArgMatches {
             Arg::new("bottom-left")
                 .short('s')
                 .long("bottom-left")
+                .value_name("BOTTOM LEFT")
                 .help("Sets the bottom left corner")
                 .value_parser(value_parser!(char))
                 .number_of_values(1)
@@ -72,7 +75,7 @@ fn app_commands() -> ArgMatches {
                 .required(false),
         )
         .arg(
-            arg!(-c  --color <STRING>        "Displays a text frame in the specified color")
+            arg!(-c  --color <COLOR>        "Displays a text frame in the specified color")
                 .number_of_values(1)
                 .value_parser([
                     "black", "red", "green", "yellow", "blue", "magenta", "cyan", "white",
