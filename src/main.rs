@@ -4,11 +4,23 @@
 use clap::{arg, value_parser, Arg, ArgAction, ArgGroup, ArgMatches, Command};
 use colored::{Color, Colorize};
 use std::io::{self, prelude::*};
+use std::fs;
+use std::io::{stdin, Read, Write};
+use std::path::PathBuf;
+use std::error::Error;
 
-fn main() {
-    app_commands();
+fn main() -> Result<(), Box<dyn Error>> {
+    let app = app_commands();
+    let mut buff = String::new();
 
-    println!("Hello, world!");
+    //println!("Hello, world!");
+    println!("In file: {:?}", app.get_one::<PathBuf>("file").unwrap());
+    match app.get_one::<PathBuf>("file") {
+        Some(path) => {buff = fs::read_to_string(path)?}
+        None => {stdin().read_to_string(&mut buff)?;}
+    }
+    println!("Print path: {}", buff);
+    Ok(())
 }
 
 fn app_commands() -> ArgMatches {
@@ -17,12 +29,11 @@ fn app_commands() -> ArgMatches {
         .author("    by PIC16F877ccs")
         .args_override_self(true)
         .arg(
-            arg!(-f  --frame <BOOL>        "Displays text in a frame")
-                .number_of_values(1)
-                .value_parser(value_parser!(bool))
-                .default_missing_value("true")
-                .hide_default_value(true)
-                .hide_possible_values(true)
+            Arg::new("frame")
+                .num_args(0)
+                .short('f')
+                .long("frame")
+                .help("Displays text in a frame")
                 .required(false),
         )
         .arg(
@@ -31,7 +42,8 @@ fn app_commands() -> ArgMatches {
                 .long("top-left")
                 .help("Sets the top left corner")
                 .value_parser(value_parser!(char))
-                .number_of_values(1)
+                .value_name("CHARACTER")
+                .num_args(1)
                 .required(false),
         )
         .arg(
@@ -40,43 +52,56 @@ fn app_commands() -> ArgMatches {
                 .long("top-right")
                 .help("Sets the top right corner")
                 .value_parser(value_parser!(char))
-                .number_of_values(1)
+                .value_name("CHARACTER")
+                .num_args(1)
                 .required(false),
         )
         .arg(
-            arg!(-H  --horizontal <STRING>        "Sets the view of horizontal line")
+            Arg::new("horizontal")
+                .short('H')
+                .long("horizontal")
+                .help("Sets the view of horizontal line")
                 .value_parser(value_parser!(char))
-                .number_of_values(1)
+                .value_name("CHARACTER")
+                .num_args(1)
                 .required(false),
         )
         .arg(
-            arg!(-V  --vertical <STRING>       "Sets the view of vertical line")
+            Arg::new("vertical")
+                .short('V')
+                .long("vertical")
+                .help("Sets the view of vertical line")
                 .value_parser(value_parser!(char))
-                .number_of_values(1)
+                .value_name("CHARACTER")
+                .num_args(1)
                 .required(false),
         )
         .arg(
             Arg::new("bottom-left")
                 .short('s')
                 .long("bottom-left")
-                .value_name("BOTTOM LEFT")
+                .value_name("CHARACTER")
                 .help("Sets the bottom left corner")
                 .value_parser(value_parser!(char))
-                .number_of_values(1)
+                .num_args(1)
                 .required(false),
         )
         .arg(
             Arg::new("bottom-right")
                 .short('e')
                 .long("bottom-right")
+                .value_name("CHARACTER")
                 .help("Sets the bottom right corner")
                 .value_parser(value_parser!(char))
-                .number_of_values(1)
+                .num_args(1)
                 .required(false),
         )
         .arg(
-            arg!(-c  --color <COLOR>        "Displays a text frame in the specified color")
-                .number_of_values(1)
+            Arg::new("color")
+                .short('c')
+                .long("color")
+                .value_name("COLOR")
+                .help("Displays a text frame in the specified color")
                 .value_parser([
                     "black", "red", "green", "yellow", "blue", "magenta", "cyan", "white",
                 ])
@@ -84,6 +109,11 @@ fn app_commands() -> ArgMatches {
                 .hide_default_value(true)
                 .hide_possible_values(true)
                 .required(false),
+        )
+        .arg(
+            Arg::new("file")
+                .value_parser(value_parser!(PathBuf))
+                .index(1)
         )
         //.arg(
         //    arg!(-p  --position <NUMBER>      "Select start and end characters")
