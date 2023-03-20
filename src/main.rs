@@ -12,14 +12,48 @@ use std::error::Error;
 fn main() -> Result<(), Box<dyn Error>> {
     let app = app_commands();
     let mut buff = String::new();
+    let mut head_line = String::new();
+    let hor_char: char = *app.get_one("horizontal").ok_or("Horizontal flag not present")?;
 
-    //println!("Hello, world!");
     println!("In file: {:?}", app.get_one::<PathBuf>("file").unwrap());
     match app.get_one::<PathBuf>("file") {
         Some(path) => {buff = fs::read_to_string(path)?}
         None => {stdin().read_to_string(&mut buff)?;}
     }
-    println!("Print path: {}", buff);
+
+    let max_line_len: usize = match buff.lines().map(|line| line.chars().count()).max() {
+        Some(value) => value,
+        None => return Ok(()),
+    };
+
+    for _ in 0..max_line_len {
+        head_line.push(hor_char);
+    }
+
+    std::io::stdout()
+        .write_all(format!("┌{head_line}┐\n")
+        .as_bytes())?;
+
+    for current_line in buff.lines() {
+        let mut current_fill = String::new();
+
+        for _ in 0..(max_line_len - current_line.chars().count()) {
+            current_fill.push('~');
+        }
+
+        std::io::stdout()
+            .write_all(format!("{vertic}{current_line}{current_fill}{vertic}\n",
+                    vertic=*app.get_one::<char>("vertical").ok_or("Vertical flag not present")?)
+            .as_bytes())?;
+    }
+
+    std::io::stdout()
+        .write_all(format!("└{head_line}┘\n")
+        .as_bytes())?;
+
+    //println!("Max line length: {}", max_line_len);
+    //println!("Long flag --frame: {}", app.get_flag("frame"));
+    //println!("Print path: {}", buff);
     Ok(())
 }
 
@@ -33,6 +67,7 @@ fn app_commands() -> ArgMatches {
                 .num_args(0)
                 .short('f')
                 .long("frame")
+                .action(clap::ArgAction::SetTrue)
                 .help("Displays text in a frame")
                 .required(false),
         )
