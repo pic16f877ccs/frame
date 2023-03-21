@@ -3,22 +3,54 @@
 #![allow(unused_mut)]
 use clap::{arg, value_parser, Arg, ArgAction, ArgGroup, ArgMatches, Command};
 use colored::{Color, Colorize};
-use std::io::{self, prelude::*};
+use std::error::Error;
 use std::fs;
 use std::io::{stdin, Read, Write};
 use std::path::PathBuf;
-use std::error::Error;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let app = app_commands();
     let mut buff = String::new();
     let mut head_line = String::new();
-    let hor_char: char = *app.get_one("horizontal").ok_or("Horizontal flag not present")?;
+    let variants = app.get_one::<String>("frame").unwrap();
 
-    println!("In file: {:?}", app.get_one::<PathBuf>("file").unwrap());
+    let variants_index: usize = match variants.as_str() {
+            "duble" => 1,
+            "round" => 2,
+            "default" => 0,
+            &_ => todo!(),
+    };
+
+    let frame_variants = [
+        ['─', '│', '┌', '┐', '└', '┘'],
+        ['═', '║', '╔', '╗', '╚', '╝'],
+        ['─', '│', '╭', '╮', '╰', '╯'],
+    ];
+    let hor_line: char = *app
+        .get_one("horizontal")
+        .unwrap_or(&frame_variants[variants_index][0]);
+    let vrt_line: char = *app
+        .get_one("vertical")
+        .unwrap_or(&frame_variants[variants_index][1]);
+    let top_left: char = *app
+        .get_one("top-left")
+        .unwrap_or(&frame_variants[variants_index][2]);
+    let top_right: char = *app
+        .get_one("top-right")
+        .unwrap_or(&frame_variants[variants_index][3]);
+    let bottom_left: char = *app
+        .get_one("bottom-left")
+        .unwrap_or(&frame_variants[variants_index][4]);
+    let bottom_right: char = *app
+        .get_one("bottom-right")
+        .unwrap_or(&frame_variants[variants_index][5]);
+
+    //println!("In file: {:?}", app.get_one::<PathBuf>("file").unwrap());
     match app.get_one::<PathBuf>("file") {
-        Some(path) => {buff = fs::read_to_string(path)?}
-        None => {stdin().read_to_string(&mut buff)?;}
+        Some(path) => buff = fs::read_to_string(path)?,
+        None => {
+            stdin().read_to_string(&mut buff)?;
+        }
     }
 
     let max_line_len: usize = match buff.lines().map(|line| line.chars().count()).max() {
@@ -27,29 +59,23 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
 
     for _ in 0..max_line_len {
-        head_line.push(hor_char);
+        head_line.push(hor_line);
     }
 
-    std::io::stdout()
-        .write_all(format!("┌{head_line}┐\n")
-        .as_bytes())?;
+    std::io::stdout().write_all(format!("{top_left}{head_line}{top_right}\n").as_bytes())?;
 
     for current_line in buff.lines() {
         let mut current_fill = String::new();
 
         for _ in 0..(max_line_len - current_line.chars().count()) {
-            current_fill.push('~');
+            current_fill.push(' ');
         }
 
         std::io::stdout()
-            .write_all(format!("{vertic}{current_line}{current_fill}{vertic}\n",
-                    vertic=*app.get_one::<char>("vertical").ok_or("Vertical flag not present")?)
-            .as_bytes())?;
+            .write_all(format!("{vrt_line}{current_line}{current_fill}{vrt_line}\n").as_bytes())?;
     }
 
-    std::io::stdout()
-        .write_all(format!("└{head_line}┘\n")
-        .as_bytes())?;
+    std::io::stdout().write_all(format!("{bottom_left}{head_line}{bottom_right}\n").as_bytes())?;
 
     //println!("Max line length: {}", max_line_len);
     //println!("Long flag --frame: {}", app.get_flag("frame"));
@@ -64,21 +90,24 @@ fn app_commands() -> ArgMatches {
         .args_override_self(true)
         .arg(
             Arg::new("frame")
-                .num_args(0)
                 .short('f')
                 .long("frame")
-                .action(clap::ArgAction::SetTrue)
-                .help("Displays text in a frame")
+                .num_args(1)
+                .value_name("VARIANTS")
+                .help("Text frame variants")
+                .default_value("default")
+                .value_parser(["default", "duble", "round"])
+                .hide_possible_values(true)
                 .required(false),
         )
         .arg(
             Arg::new("top-left")
                 .short('S')
                 .long("top-left")
-                .help("Sets the top left corner")
-                .value_parser(value_parser!(char))
-                .value_name("CHARACTER")
                 .num_args(1)
+                .value_name("CHARACTER")
+                .value_parser(value_parser!(char))
+                .help("Sets the top left corner")
                 .required(false),
         )
         .arg(
@@ -148,7 +177,7 @@ fn app_commands() -> ArgMatches {
         .arg(
             Arg::new("file")
                 .value_parser(value_parser!(PathBuf))
-                .index(1)
+                .index(1),
         )
         //.arg(
         //    arg!(-p  --position <NUMBER>      "Select start and end characters")
