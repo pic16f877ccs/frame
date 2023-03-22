@@ -8,46 +8,101 @@ use std::fs;
 use std::io::{stdin, Read, Write};
 use std::path::PathBuf;
 
-fn frame_variants(app: &ArgMatches) -> usize {
-    let Some(variants) = app.get_one::<String>("frame") else { return 0 };
-    match variants.as_str() {
-        "duble" => 1,
-        "round" => 2,
-        _ => 0,
+struct Frame {
+    frame_variants: [char; 6],
+}
+
+impl Default for Frame {
+    fn default() -> Self {
+        Self {
+            frame_variants: ['┌', '┐', '─', '│', '└', '┘'],
+        }
+    }
+}
+
+impl Frame {
+    fn duble() -> Self {
+        Self {
+            frame_variants: ['╔', '╗', '═', '║', '╚', '╝'],
+        }
+    }
+
+    fn round() -> Self {
+        Self {
+            frame_variants: ['╭', '╮', '─', '│', '╰', '╯'],
+        }
+    }
+
+    fn frame_variants(app: &ArgMatches) -> Self {
+        if let Some(variants) = app.get_one::<String>("frame") {
+            match variants.as_str() {
+                "duble" => Self::duble(),
+                "round" => Self::round(),
+                _ => Self::default(),
+            }
+        } else {
+            Self::default()
+        }
+    }
+
+    fn get_top_left(&self) -> char {
+        self.frame_variants[0]
+    }
+    fn get_top_right(&self) -> char {
+        self.frame_variants[1]
+    }
+    fn get_horizontal(&self) -> char {
+        self.frame_variants[2]
+    }
+    fn get_vertical(&self) -> char {
+        self.frame_variants[3]
+    }
+    fn get_bottom_left(&self) -> char {
+        self.frame_variants[4]
+    }
+    fn get_bottom_right(&self) -> char {
+        self.frame_variants[5]
+    }
+
+    fn set_top_left(&mut self, c: char) -> &Self {
+        self.frame_variants[0] = c;
+        self
+    }
+    fn set_top_right(&mut self, c: char) -> &Self {
+        self.frame_variants[1] = c;
+        self
+    }
+    fn set_horizontal(&mut self, c: char) -> &Self {
+        self.frame_variants[2] = c;
+        self
+    }
+    fn set_vertical(&mut self, c: char) -> &Self {
+        self.frame_variants[3] = c;
+        self
+    }
+    fn set_bottom_left(&mut self, c: char) -> &Self {
+        self.frame_variants[4] = c;
+        self
+    }
+    fn set_bottom_right(&mut self, c: char) -> &Self {
+        self.frame_variants[5] = c;
+        self
     }
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
     let app = app_commands();
+    let mut frame = Frame::frame_variants(&app);
     let mut buff = String::new();
     let mut head_line = String::new();
-    let variants_index = frame_variants(&app);
 
-    let frame_variants = [
-        ['─', '│', '┌', '┐', '└', '┘'],
-        ['═', '║', '╔', '╗', '╚', '╝'],
-        ['─', '│', '╭', '╮', '╰', '╯'],
-    ];
-    let hor_line: char = *app
-        .get_one("horizontal")
-        .unwrap_or(&frame_variants[variants_index][0]);
-    let vrt_line: char = *app
-        .get_one("vertical")
-        .unwrap_or(&frame_variants[variants_index][1]);
-    let top_left: char = *app
-        .get_one("top-left")
-        .unwrap_or(&frame_variants[variants_index][2]);
-    let top_right: char = *app
-        .get_one("top-right")
-        .unwrap_or(&frame_variants[variants_index][3]);
-    let bottom_left: char = *app
-        .get_one("bottom-left")
-        .unwrap_or(&frame_variants[variants_index][4]);
-    let bottom_right: char = *app
-        .get_one("bottom-right")
-        .unwrap_or(&frame_variants[variants_index][5]);
+    frame.set_horizontal(*app.get_one("horizontal").unwrap_or(&frame.get_horizontal()));
+    frame.set_vertical(*app.get_one("vertical").unwrap_or(&frame.get_vertical()));
+    frame.set_top_left(*app.get_one("top-left").unwrap_or(&frame.get_top_left()));
+    frame.set_top_right(*app.get_one("top-right").unwrap_or(&frame.get_top_right()));
+    frame.set_bottom_left(*app.get_one("bottom-left").unwrap_or(&frame.get_bottom_left()));
+    frame.set_bottom_right(*app.get_one("bottom-right").unwrap_or(&frame.get_bottom_right()));
 
-    //println!("In file: {:?}", app.get_one::<PathBuf>("file").unwrap());
     match app.get_one::<PathBuf>("file") {
         Some(path) => buff = fs::read_to_string(path)?,
         None => {
@@ -61,10 +116,17 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
 
     for _ in 0..max_line_len {
-        head_line.push(hor_line);
+        head_line.push(frame.get_horizontal());
     }
 
-    std::io::stdout().write_all(format!("{top_left}{head_line}{top_right}\n").as_bytes())?;
+    std::io::stdout().write_all(
+        format!(
+            "{}{head_line}{}\n",
+            frame.get_top_left(),
+            frame.get_top_right()
+        )
+        .as_bytes(),
+    )?;
 
     for current_line in buff.lines() {
         let mut current_fill = String::new();
@@ -73,12 +135,25 @@ fn main() -> Result<(), Box<dyn Error>> {
             current_fill.push(' ');
         }
 
-        std::io::stdout()
-            .write_all(format!("{vrt_line}{current_line}{current_fill}{vrt_line}\n").as_bytes())?;
+        std::io::stdout().write_all(
+            format!(
+                "{vrt}{current_line}{current_fill}{vrt}\n",
+                vrt = frame.get_vertical()
+            )
+            .as_bytes(),
+        )?;
     }
 
-    std::io::stdout().write_all(format!("{bottom_left}{head_line}{bottom_right}\n").as_bytes())?;
+    std::io::stdout().write_all(
+        format!(
+            "{}{head_line}{}\n",
+            frame.get_bottom_left(),
+            frame.get_bottom_right()
+        )
+        .as_bytes(),
+    )?;
 
+    //println!("In file: {:?}", app.get_one::<PathBuf>("file").unwrap());
     //println!("Max line length: {}", max_line_len);
     //println!("Long flag --frame: {}", app.get_flag("frame"));
     //println!("Print path: {}", buff);
