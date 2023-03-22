@@ -8,18 +8,20 @@ use std::fs;
 use std::io::{stdin, Read, Write};
 use std::path::PathBuf;
 
+fn frame_variants(app: &ArgMatches) -> usize {
+    let Some(variants) = app.get_one::<String>("frame") else { return 0 };
+    match variants.as_str() {
+        "duble" => 1,
+        "round" => 2,
+        _ => 0,
+    }
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     let app = app_commands();
     let mut buff = String::new();
     let mut head_line = String::new();
-    let variants = app.get_one::<String>("frame").unwrap();
-
-    let variants_index: usize = match variants.as_str() {
-            "duble" => 1,
-            "round" => 2,
-            "default" => 0,
-            &_ => todo!(),
-    };
+    let variants_index = frame_variants(&app);
 
     let frame_variants = [
         ['─', '│', '┌', '┐', '└', '┘'],
@@ -95,8 +97,9 @@ fn app_commands() -> ArgMatches {
                 .num_args(1)
                 .value_name("VARIANTS")
                 .help("Text frame variants")
-                .default_value("default")
-                .value_parser(["default", "duble", "round"])
+                //.default_value("default")
+                //.value_parser(["default", "duble", "round"])
+                .value_parser(["duble", "round"])
                 .hide_possible_values(true)
                 .required(false),
         )
