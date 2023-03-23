@@ -44,6 +44,15 @@ impl Frame {
             Self::default()
         }
     }
+    fn frame_custom(&mut self, app: &ArgMatches) -> &Self {
+        self.set_horizontal(*app.get_one("horizontal").unwrap_or(&self.get_horizontal()));
+        self.set_vertical(*app.get_one("vertical").unwrap_or(&self.get_vertical()));
+        self.set_top_left(*app.get_one("top-left").unwrap_or(&self.get_top_left()));
+        self.set_top_right(*app.get_one("top-right").unwrap_or(&self.get_top_right()));
+        self.set_bottom_left(*app.get_one("bottom-left").unwrap_or(&self.get_bottom_left()));
+        self.set_bottom_right(*app.get_one("bottom-right").unwrap_or(&self.get_bottom_right()));
+        self
+    }
 
     fn get_top_left(&self) -> char {
         self.frame_variants[0]
@@ -95,13 +104,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut frame = Frame::frame_variants(&app);
     let mut buff = String::new();
     let mut head_line = String::new();
+    frame.frame_custom(&app);
 
-    frame.set_horizontal(*app.get_one("horizontal").unwrap_or(&frame.get_horizontal()));
-    frame.set_vertical(*app.get_one("vertical").unwrap_or(&frame.get_vertical()));
-    frame.set_top_left(*app.get_one("top-left").unwrap_or(&frame.get_top_left()));
-    frame.set_top_right(*app.get_one("top-right").unwrap_or(&frame.get_top_right()));
-    frame.set_bottom_left(*app.get_one("bottom-left").unwrap_or(&frame.get_bottom_left()));
-    frame.set_bottom_right(*app.get_one("bottom-right").unwrap_or(&frame.get_bottom_right()));
+    //frame.set_horizontal(*app.get_one("horizontal").unwrap_or(&frame.get_horizontal()));
+    //frame.set_vertical(*app.get_one("vertical").unwrap_or(&frame.get_vertical()));
+    //frame.set_top_left(*app.get_one("top-left").unwrap_or(&frame.get_top_left()));
+    //frame.set_top_right(*app.get_one("top-right").unwrap_or(&frame.get_top_right()));
+    //frame.set_bottom_left(*app.get_one("bottom-left").unwrap_or(&frame.get_bottom_left()));
+    //frame.set_bottom_right(*app.get_one("bottom-right").unwrap_or(&frame.get_bottom_right()));
 
     match app.get_one::<PathBuf>("file") {
         Some(path) => buff = fs::read_to_string(path)?,
