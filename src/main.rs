@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 #![allow(unused_mut)]
-use clap::{arg, value_parser, Arg, ArgAction, ArgGroup, ArgMatches, Command};
+use clap::{value_parser, Arg, ArgMatches, Command};
 use colored::{Color, Colorize};
 use std::error::Error;
 use std::fs;
@@ -9,13 +9,13 @@ use std::io::{stdin, Read, Write};
 use std::path::PathBuf;
 
 struct Frame {
-    frame_variants: [char; 6],
+    frame_variants: [char; 8],
 }
 
 impl Default for Frame {
     fn default() -> Self {
         Self {
-            frame_variants: ['┌', '┐', '─', '│', '└', '┘'],
+            frame_variants: ['┌', '┐', '─', '─', '│', '│', '└', '┘'],
         }
     }
 }
@@ -23,13 +23,18 @@ impl Default for Frame {
 impl Frame {
     fn duble() -> Self {
         Self {
-            frame_variants: ['╔', '╗', '═', '║', '╚', '╝'],
+            frame_variants: ['╔', '╗', '═', '═', '║', '║', '╚', '╝'],
         }
     }
 
     fn round() -> Self {
         Self {
-            frame_variants: ['╭', '╮', '─', '│', '╰', '╯'],
+            frame_variants: ['╭', '╮', '─', '─', '│', '│', '╰', '╯'],
+        }
+    }
+    fn heavy() -> Self {
+        Self {
+            frame_variants: ['┏', '┓', '━', '━', '┃', '┃', '┗', '┛'],
         }
     }
 
@@ -38,6 +43,7 @@ impl Frame {
             match variants.as_str() {
                 "duble" => Self::duble(),
                 "round" => Self::round(),
+                "heavy" => Self::heavy(),
                 _ => Self::default(),
             }
         } else {
@@ -45,12 +51,20 @@ impl Frame {
         }
     }
     fn frame_custom(&mut self, app: &ArgMatches) -> &Self {
-        self.set_horizontal(*app.get_one("horizontal").unwrap_or(&self.get_horizontal()));
-        self.set_vertical(*app.get_one("vertical").unwrap_or(&self.get_vertical()));
+        self.set_hor_upper(*app.get_one("hor-upper").unwrap_or(&self.get_hor_upper()));
+        self.set_hor_lower(*app.get_one("hor-lower").unwrap_or(&self.get_hor_lower()));
+        self.set_vert_left(*app.get_one("vert-left").unwrap_or(&self.get_vert_left()));
+        self.set_vert_right(*app.get_one("vert-right").unwrap_or(&self.get_vert_right()));
         self.set_top_left(*app.get_one("top-left").unwrap_or(&self.get_top_left()));
         self.set_top_right(*app.get_one("top-right").unwrap_or(&self.get_top_right()));
-        self.set_bottom_left(*app.get_one("bottom-left").unwrap_or(&self.get_bottom_left()));
-        self.set_bottom_right(*app.get_one("bottom-right").unwrap_or(&self.get_bottom_right()));
+        self.set_bottom_left(
+            *app.get_one("bottom-left")
+                .unwrap_or(&self.get_bottom_left()),
+        );
+        self.set_bottom_right(
+            *app.get_one("bottom-right")
+                .unwrap_or(&self.get_bottom_right()),
+        );
         self
     }
 
@@ -60,17 +74,23 @@ impl Frame {
     fn get_top_right(&self) -> char {
         self.frame_variants[1]
     }
-    fn get_horizontal(&self) -> char {
+    fn get_hor_upper(&self) -> char {
         self.frame_variants[2]
     }
-    fn get_vertical(&self) -> char {
+    fn get_hor_lower(&self) -> char {
         self.frame_variants[3]
     }
-    fn get_bottom_left(&self) -> char {
+    fn get_vert_left(&self) -> char {
         self.frame_variants[4]
     }
-    fn get_bottom_right(&self) -> char {
+    fn get_vert_right(&self) -> char {
         self.frame_variants[5]
+    }
+    fn get_bottom_left(&self) -> char {
+        self.frame_variants[6]
+    }
+    fn get_bottom_right(&self) -> char {
+        self.frame_variants[7]
     }
 
     fn set_top_left(&mut self, c: char) -> &Self {
@@ -81,20 +101,28 @@ impl Frame {
         self.frame_variants[1] = c;
         self
     }
-    fn set_horizontal(&mut self, c: char) -> &Self {
+    fn set_hor_upper(&mut self, c: char) -> &Self {
         self.frame_variants[2] = c;
         self
     }
-    fn set_vertical(&mut self, c: char) -> &Self {
+    fn set_hor_lower(&mut self, c: char) -> &Self {
         self.frame_variants[3] = c;
         self
     }
-    fn set_bottom_left(&mut self, c: char) -> &Self {
+    fn set_vert_left(&mut self, c: char) -> &Self {
         self.frame_variants[4] = c;
         self
     }
-    fn set_bottom_right(&mut self, c: char) -> &Self {
+    fn set_vert_right(&mut self, c: char) -> &Self {
         self.frame_variants[5] = c;
+        self
+    }
+    fn set_bottom_left(&mut self, c: char) -> &Self {
+        self.frame_variants[6] = c;
+        self
+    }
+    fn set_bottom_right(&mut self, c: char) -> &Self {
+        self.frame_variants[7] = c;
         self
     }
 }
@@ -102,16 +130,10 @@ impl Frame {
 fn main() -> Result<(), Box<dyn Error>> {
     let app = app_commands();
     let mut frame = Frame::frame_variants(&app);
-    let mut buff = String::new();
-    let mut head_line = String::new();
     frame.frame_custom(&app);
-
-    //frame.set_horizontal(*app.get_one("horizontal").unwrap_or(&frame.get_horizontal()));
-    //frame.set_vertical(*app.get_one("vertical").unwrap_or(&frame.get_vertical()));
-    //frame.set_top_left(*app.get_one("top-left").unwrap_or(&frame.get_top_left()));
-    //frame.set_top_right(*app.get_one("top-right").unwrap_or(&frame.get_top_right()));
-    //frame.set_bottom_left(*app.get_one("bottom-left").unwrap_or(&frame.get_bottom_left()));
-    //frame.set_bottom_right(*app.get_one("bottom-right").unwrap_or(&frame.get_bottom_right()));
+    let mut buff = String::new();
+    let mut hor_upper_line = String::from(frame.get_hor_upper());
+    let mut hor_lower_line = String::from(frame.get_hor_lower());
 
     match app.get_one::<PathBuf>("file") {
         Some(path) => buff = fs::read_to_string(path)?,
@@ -125,30 +147,38 @@ fn main() -> Result<(), Box<dyn Error>> {
         None => return Ok(()),
     };
 
-    for _ in 0..max_line_len {
-        head_line.push(frame.get_horizontal());
-    }
+    hor_upper_line = hor_upper_line.repeat(max_line_len);
+    hor_lower_line = hor_lower_line.repeat(max_line_len);
 
     std::io::stdout().write_all(
         format!(
-            "{}{head_line}{}\n",
-            frame.get_top_left(),
-            frame.get_top_right()
+            "{top_left}{hor_upper_line}{top_right}\n",
+            top_left = frame.get_top_left(),
+            top_right = frame.get_top_right()
         )
         .as_bytes(),
     )?;
 
     for current_line in buff.lines() {
-        let mut current_fill = String::new();
+        let line_len = max_line_len - current_line.chars().count();
+        let mut left = 0;
 
-        for _ in 0..(max_line_len - current_line.chars().count()) {
-            current_fill.push(' ');
+        if let Some(aling) = app.get_one::<String>("alignment") {
+            match aling.as_str() {
+                "centr" => left = line_len / 2,
+                "right" => left = line_len,
+                _ => left = 0,
+            }
         }
+
+        let left_fill = " ".repeat(left);
+        let right_fill = " ".repeat(line_len - left);
 
         std::io::stdout().write_all(
             format!(
-                "{vrt}{current_line}{current_fill}{vrt}\n",
-                vrt = frame.get_vertical()
+                "{vrt_left}{left_fill}{current_line}{right_fill}{vrt_right}\n",
+                vrt_left = frame.get_vert_left(),
+                vrt_right = frame.get_vert_right()
             )
             .as_bytes(),
         )?;
@@ -156,17 +186,13 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     std::io::stdout().write_all(
         format!(
-            "{}{head_line}{}\n",
-            frame.get_bottom_left(),
-            frame.get_bottom_right()
+            "{bottom_left}{hor_lower_line}{bottom_right}\n",
+            bottom_left = frame.get_bottom_left(),
+            bottom_right = frame.get_bottom_right()
         )
         .as_bytes(),
     )?;
 
-    //println!("In file: {:?}", app.get_one::<PathBuf>("file").unwrap());
-    //println!("Max line length: {}", max_line_len);
-    //println!("Long flag --frame: {}", app.get_flag("frame"));
-    //println!("Print path: {}", buff);
     Ok(())
 }
 
@@ -182,10 +208,19 @@ fn app_commands() -> ArgMatches {
                 .num_args(1)
                 .value_name("VARIANTS")
                 .help("Text frame variants")
-                //.default_value("default")
-                //.value_parser(["default", "duble", "round"])
-                .value_parser(["duble", "round"])
-                .hide_possible_values(true)
+                .value_parser(["duble", "round", "heavy"])
+                //.hide_possible_values(true)
+                .required(false),
+        )
+        .arg(
+            Arg::new("alignment")
+                .short('a')
+                .long("align")
+                .num_args(1)
+                .value_name("ALINGMENT")
+                .help("Alingment text in frame")
+                .value_parser(["centr", "right"])
+                //.hide_possible_values(true)
                 .required(false),
         )
         .arg(
@@ -209,20 +244,38 @@ fn app_commands() -> ArgMatches {
                 .required(false),
         )
         .arg(
-            Arg::new("horizontal")
+            Arg::new("hor-upper")
                 .short('H')
-                .long("horizontal")
-                .help("Sets the view of horizontal line")
+                .long("hor-upper")
+                .help("Sets the view of horizontal upper line")
                 .value_parser(value_parser!(char))
                 .value_name("CHARACTER")
                 .num_args(1)
                 .required(false),
         )
         .arg(
-            Arg::new("vertical")
+            Arg::new("hor-lower")
+                .long("hor-lower")
+                .help("Sets the view of horizontal lower line")
+                .value_parser(value_parser!(char))
+                .value_name("CHARACTER")
+                .num_args(1)
+                .required(false),
+        )
+        .arg(
+            Arg::new("vert-left")
                 .short('V')
-                .long("vertical")
-                .help("Sets the view of vertical line")
+                .long("vert-left")
+                .help("Sets the view of vertical left line")
+                .value_parser(value_parser!(char))
+                .value_name("CHARACTER")
+                .num_args(1)
+                .required(false),
+        )
+        .arg(
+            Arg::new("vert-right")
+                .long("vert-right")
+                .help("Sets the view of vertical right line")
                 .value_parser(value_parser!(char))
                 .value_name("CHARACTER")
                 .num_args(1)
@@ -267,17 +320,5 @@ fn app_commands() -> ArgMatches {
                 .value_parser(value_parser!(PathBuf))
                 .index(1),
         )
-        //.arg(
-        //    arg!(-p  --position <NUMBER>      "Select start and end characters")
-        //        .value_parser(value_parser!(usize))
-        //        .number_of_values(2)
-        //        .use_value_delimiter(true)
-        //        .required(false),
-        //)
-        //.arg(
-        //    arg!(-e  --exclude <STRING>        "Exclude chars filter")
-        //        .action(ArgAction::Append)
-        //        .required(false),
-        //)
         .get_matches()
 }
