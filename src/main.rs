@@ -134,6 +134,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut buff = String::new();
     let mut hor_upper_line = String::from(frame.get_hor_upper());
     let mut hor_lower_line = String::from(frame.get_hor_lower());
+    let mut te = String::from("");
 
     match app.get_one::<PathBuf>("file") {
         Some(path) => buff = fs::read_to_string(path)?,
@@ -147,12 +148,20 @@ fn main() -> Result<(), Box<dyn Error>> {
         None => return Ok(()),
     };
 
-    hor_upper_line = hor_upper_line.repeat(max_line_len);
-    hor_lower_line = hor_lower_line.repeat(max_line_len);
+    let expand = *app.get_one("expand").unwrap_or(&0);
+
+    hor_upper_line = hor_upper_line.repeat(max_line_len + expand * 2);
+    hor_lower_line = hor_lower_line.repeat(max_line_len + expand * 2);
+    te = " ".repeat(max_line_len + expand * 2);
+    te = format!(
+        "{vrt_left}{te}{vrt_right}\n",
+        vrt_left = frame.get_vert_left(),
+        vrt_right = frame.get_vert_right()
+    ).repeat(expand);
 
     std::io::stdout().write_all(
         format!(
-            "{top_left}{hor_upper_line}{top_right}\n",
+            "{top_left}{hor_upper_line}{top_right}\n{te}",
             top_left = frame.get_top_left(),
             top_right = frame.get_top_right()
         )
@@ -160,7 +169,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     )?;
 
     for current_line in buff.lines() {
-        let line_len = max_line_len - current_line.chars().count();
+        let line_len = max_line_len - current_line.chars().count() + expand * 2;
         let mut left = 0;
 
         if let Some(aling) = app.get_one::<String>("alignment") {
@@ -186,9 +195,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     std::io::stdout().write_all(
         format!(
-            "{bottom_left}{hor_lower_line}{bottom_right}\n",
+            "{te}{bottom_left}{hor_lower_line}{bottom_right}\n",
             bottom_left = frame.get_bottom_left(),
-            bottom_right = frame.get_bottom_right()
+            bottom_right = frame.get_bottom_right(),
         )
         .as_bytes(),
     )?;
@@ -221,6 +230,16 @@ fn app_commands() -> ArgMatches {
                 .help("Alingment text in frame")
                 .value_parser(["centr", "right"])
                 //.hide_possible_values(true)
+                .required(false),
+        )
+        .arg(
+            Arg::new("expand")
+                //.short('e')
+                .long("expand")
+                .num_args(1)
+                .value_name("NUMPER")
+                .value_parser(value_parser!(usize))
+                .help("Expand the frame")
                 .required(false),
         )
         .arg(
