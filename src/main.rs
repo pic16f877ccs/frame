@@ -147,7 +147,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    let expand = *app.get_one("expand").unwrap_or(&0);
+    let expand = *(app.get_one("expand").unwrap_or(&0u8)) as usize;
     let mut max_line_len: usize = match buff.lines().map(|line| line.chars().count()).max() {
         Some(value) => value + expand * 2,
         None => return Ok(()),
@@ -252,7 +252,7 @@ fn app_commands() -> ArgMatches {
                 .long("expand")
                 .num_args(1)
                 .value_name("NUMBER")
-                .value_parser(value_parser!(usize))
+                .value_parser(value_parser!(u8).range(1..100))
                 .help("Enlarge frame")
                 .required(false),
         )
