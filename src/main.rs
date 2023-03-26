@@ -157,40 +157,41 @@ fn main() -> Result<(), Box<dyn Error>> {
         "{vrt_left}{te}{vrt_right}\n",
         vrt_left = frame.get_vert_left(),
         vrt_right = frame.get_vert_right()
-    ).repeat(expand);
+    )
+    .repeat(expand);
 
-    std::io::stdout().write_all(
-        format!(
-            "{top_left}{hor_upper_line}{top_right}\n{te}",
-            top_left = frame.get_top_left(),
-            top_right = frame.get_top_right()
-        )
-        .as_bytes(),
-    )?;
+    hor_upper_line = format!(
+        "{top_left}{hor_upper_line}{top_right}\n{te}{buff}",
+        top_left = frame.get_top_left(),
+        top_right = frame.get_top_right()
+    );
 
-    for current_line in buff.lines() {
-        let line_len = max_line_len - current_line.chars().count() + expand * 2;
-        let mut left = 0;
+    for current_line in hor_upper_line.lines() {
+        let current_line_len = current_line.chars().count() + expand * 2;
 
-        if let Some(aling) = app.get_one::<String>("alignment") {
-            match aling.as_str() {
-                "centr" => left = line_len / 2,
-                "right" => left = line_len,
-                _ => left = 0,
+        let out_line = if max_line_len < current_line_len {
+            format!("{current_line}\n")
+        } else {
+            let mut left = 0;
+            let line_len = max_line_len - current_line_len;
+
+            if let Some(aling) = app.get_one::<String>("alignment") {
+                match aling.as_str() {
+                    "centr" => left = line_len / 2,
+                    "right" => left = line_len,
+                    _ => left = 0,
+                }
             }
-        }
-
-        let left_fill = " ".repeat(left);
-        let right_fill = " ".repeat(line_len - left);
-
-        std::io::stdout().write_all(
             format!(
-                "{vrt_left}{left_fill}{current_line}{right_fill}{vrt_right}\n",
-                vrt_left = frame.get_vert_left(),
-                vrt_right = frame.get_vert_right()
+                "{vert_left}{left_fill}{current_line}{right_fill}{vert_right}\n",
+                vert_left = frame.get_vert_left(),
+                left_fill = " ".repeat(left),
+                right_fill = " ".repeat(line_len - left),
+                vert_right = frame.get_vert_right(),
             )
-            .as_bytes(),
-        )?;
+        };
+
+        std::io::stdout().write_all(out_line.as_bytes())?;
     }
 
     std::io::stdout().write_all(
