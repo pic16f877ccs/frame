@@ -58,8 +58,8 @@ impl Frame {
         }
     }
     fn frame_custom(&mut self, app: &ArgMatches) -> &Self {
-        self.set_hor_upper(*app.get_one("hor-upper").unwrap_or(&self.get_hor_top()));
-        self.set_hor_lower(*app.get_one("hor-lower").unwrap_or(&self.get_hor_buttom()));
+        self.set_hor_top(*app.get_one("horizontal-top").unwrap_or(&self.get_hor_top()));
+        self.set_hor_bottom(*app.get_one("horizontal-bottom").unwrap_or(&self.get_hor_buttom()));
         self.set_vert_left(*app.get_one("vert-left").unwrap_or(&self.get_vert_left()));
         self.set_vert_right(*app.get_one("vert-right").unwrap_or(&self.get_vert_right()));
         self.set_top_left(*app.get_one("top-left").unwrap_or(&self.get_top_left()));
@@ -108,11 +108,11 @@ impl Frame {
         self.frame_variants[1] = c;
         self
     }
-    fn set_hor_upper(&mut self, c: char) -> &Self {
+    fn set_hor_top(&mut self, c: char) -> &Self {
         self.frame_variants[2] = c;
         self
     }
-    fn set_hor_lower(&mut self, c: char) -> &Self {
+    fn set_hor_bottom(&mut self, c: char) -> &Self {
         self.frame_variants[3] = c;
         self
     }
@@ -234,7 +234,6 @@ fn app_commands() -> ArgMatches {
                 .value_name("VARIANTS")
                 .help("Text frame variants")
                 .value_parser(["duble", "round", "heavy", "torn"])
-                //.hide_possible_values(true)
                 .required(false),
         )
         .arg(
@@ -243,19 +242,18 @@ fn app_commands() -> ArgMatches {
                 .long("align")
                 .num_args(1)
                 .value_name("ALINGMENT")
-                .help("Alingment text in frame")
+                .help("Frame text alingment")
                 .value_parser(["centr", "right"])
                 //.hide_possible_values(true)
                 .required(false),
         )
         .arg(
             Arg::new("expand")
-                //.short('e')
                 .long("expand")
                 .num_args(1)
-                .value_name("NUMPER")
+                .value_name("NUMBER")
                 .value_parser(value_parser!(usize))
-                .help("Expand the frame")
+                .help("Enlarge frame")
                 .required(false),
         )
         .arg(
@@ -279,19 +277,19 @@ fn app_commands() -> ArgMatches {
                 .required(false),
         )
         .arg(
-            Arg::new("hor-upper")
+            Arg::new("horizontal-top")
                 .short('H')
-                .long("hor-upper")
-                .help("Sets the view of horizontal upper line")
+                .long("hor-top")
+                .help("Sets the view of horizontal top line")
                 .value_parser(value_parser!(char))
                 .value_name("CHARACTER")
                 .num_args(1)
                 .required(false),
         )
         .arg(
-            Arg::new("hor-lower")
-                .long("hor-lower")
-                .help("Sets the view of horizontal lower line")
+            Arg::new("horizontal-bottom")
+                .long("hor-bottom")
+                .help("Sets the view of horizontal bottom line")
                 .value_parser(value_parser!(char))
                 .value_name("CHARACTER")
                 .num_args(1)
@@ -343,8 +341,6 @@ fn app_commands() -> ArgMatches {
                 .value_name("COLOR")
                 .help("Displays a text frame in the specified color")
                 .value_parser(["red", "green", "yellow", "blue", "magenta", "cyan", "white"])
-                .hide_default_value(true)
-                .hide_possible_values(true)
                 .required(false),
         )
         .arg(
