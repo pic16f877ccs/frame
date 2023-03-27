@@ -2,7 +2,7 @@
 #![allow(unused_variables)]
 #![allow(unused_mut)]
 use clap::{value_parser, Arg, ArgMatches, Command};
-use colored::{Color, Colorize};
+use colored::Colorize;
 use std::error::Error;
 use std::fs;
 use std::io::{stdin, Read, Write};
@@ -59,7 +59,10 @@ impl Frame {
     }
     fn frame_custom(&mut self, app: &ArgMatches) -> &Self {
         self.set_hor_top(*app.get_one("horizontal-top").unwrap_or(&self.get_hor_top()));
-        self.set_hor_bottom(*app.get_one("horizontal-bottom").unwrap_or(&self.get_hor_buttom()));
+        self.set_hor_bottom(
+            *app.get_one("horizontal-bottom")
+                .unwrap_or(&self.get_hor_buttom()),
+        );
         self.set_vert_left(*app.get_one("vert-left").unwrap_or(&self.get_vert_left()));
         self.set_vert_right(*app.get_one("vert-right").unwrap_or(&self.get_vert_right()));
         self.set_top_left(*app.get_one("top-left").unwrap_or(&self.get_top_left()));
@@ -132,7 +135,17 @@ impl Frame {
         self.frame_variants[7] = c;
         self
     }
+
+    //fn hor_top_line(app: &ArgMatches) -> String {
+    //    format!(
+    //        "{top_left}{hor_top}{top_right}",
+    //        top_left = self.get_top_left(),
+    //        hor_top = self.get_hor_top().to_string().repeat(max_line_len),
+    //        top_right = self.get_top_right()
+    //    )
+    //}
 }
+
 
 fn main() -> Result<(), Box<dyn Error>> {
     let app = app_commands();
@@ -148,7 +161,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     let expand = *(app.get_one("expand").unwrap_or(&0u8)) as usize;
-    let mut max_line_len: usize = match buff.lines().map(|line| line.chars().count()).max() {
+    let max_line_len: usize = match buff.lines().map(|line| line.chars().count()).max() {
         Some(value) => value + expand * 2,
         None => return Ok(()),
     };
@@ -168,28 +181,26 @@ fn main() -> Result<(), Box<dyn Error>> {
         "black"
     };
 
-    let hor_top_line = String::from(frame.get_hor_top())
-        .repeat(max_line_len)
-        .color(color);
-    let hor_buttom_line = String::from(frame.get_hor_buttom())
-        .repeat(max_line_len)
-        .color(color);
+    let hor_top_line = format!(
+        "{top_left}{hor_top}{top_right}",
+        top_left = frame.get_top_left(),
+        hor_top = frame.get_hor_top().to_string().repeat(max_line_len),
+        top_right = frame.get_top_right()
+    )
+    .color(color);
+    let hor_buttom_line = format!(
+        "{bottom_left}{hor_bottom}{bottom_right}",
+        bottom_left = frame.get_bottom_left(),
+        hor_bottom = frame.get_hor_buttom().to_string().repeat(max_line_len),
+        bottom_right = frame.get_bottom_right()
+    )
+    .color(color);
     let vrt_left = String::from(frame.get_vert_left()).color(color);
     let vrt_right = String::from(frame.get_vert_right()).color(color);
 
-    let hor_line = format!(
-        "{vrt_left}{hor_line}{vrt_right}\n",
-        hor_line = " ".repeat(max_line_len)
-    )
-    .repeat(expand);
+    let hor_line = format!("{hor_line}\n", hor_line = " ".repeat(max_line_len)).repeat(expand);
 
-    let buff_line = format!(
-        "{top_left}{hor_top_line}{top_right}\n{hor_line}{buff}{hor_line}{bottom_left}{hor_buttom_line}{bottom_right}\n",
-        top_left = frame.get_top_left().to_string().color(color),
-        top_right = frame.get_top_right().to_string().color(color),
-        bottom_left = frame.get_bottom_left().to_string().color(color),
-        bottom_right = frame.get_bottom_right().to_string().color(color),
-    );
+    let buff_line = format!("{hor_top_line}\n{hor_line}{buff}{hor_line}{hor_buttom_line}\n");
 
     for current_line in buff_line.lines() {
         let current_line_len = current_line.chars().count();
