@@ -3,61 +3,108 @@
 #![allow(unused_mut)]
 use clap::{value_parser, Arg, ArgMatches, Command};
 use colored::Colorize;
-use std::error::Error;
+use std::error::{self, Error};
 use std::fs;
 use std::io::{stdin, Read, Write};
 use std::path::PathBuf;
 
 struct Frame {
     frame_variants: [char; 8],
+    line_buff: String,
+    max_line_len: usize,
+    expand: usize,
 }
 
 impl Default for Frame {
     fn default() -> Self {
         Self {
             frame_variants: ['┌', '┐', '─', '─', '│', '│', '└', '┘'],
+            line_buff: String::new(),
+            max_line_len: 0,
+            expand: 0,
         }
     }
 }
 
 impl Frame {
-    fn duble() -> Self {
-        Self {
-            frame_variants: ['╔', '╗', '═', '═', '║', '║', '╚', '╝'],
+    fn read(&mut self, app: &ArgMatches) -> Result<&Self, Box<dyn error::Error>> {
+        self.frame_variants = ['┌', '┐', '─', '─', '│', '│', '└', '┘'];
+
+        match app.get_one::<PathBuf>("file") {
+            Some(path) => self.line_buff = fs::read_to_string(path)?,
+            None => {
+                stdin().read_to_string(&mut self.line_buff)?;
+            }
         }
+
+        self.expand = *(app.get_one("expand").unwrap_or(&0u8)) as usize;
+        self.max_line_len = self.line_buff.lines().map(|line| line.chars().count()).max().ok_or("error")? + self.expand * 2;
+
+        Ok(self)
     }
 
-    fn round() -> Self {
-        Self {
-            frame_variants: ['╭', '╮', '─', '─', '│', '│', '╰', '╯'],
-        }
-    }
-    fn heavy() -> Self {
-        Self {
-            frame_variants: ['┏', '┓', '━', '━', '┃', '┃', '┗', '┛'],
-        }
-    }
-
-    fn torn() -> Self {
-        Self {
-            frame_variants: ['', '', '', '', '¦', '¦', '', ''],
-        }
+    fn duble(&mut self) {
+        //self.frame_variants = ['╔', '╗', '═', '═', '║', '║', '╚', '╝'];
+        self.set_top_left('╔');
+        self.set_top_right('╗');
+        self.set_hor_top('═');
+        self.set_hor_bottom('═');
+        self.set_vert_left('║');
+        self.set_vert_right('║');
+        self.set_bottom_left('╚');
+        self.set_bottom_right('╝');
     }
 
-    fn frame_variants(app: &ArgMatches) -> Self {
+    fn round(&mut self) {
+        //self.frame_variants = ['╭', '╮', '─', '─', '│', '│', '╰', '╯'];
+        self.set_top_left('╭');
+        self.set_top_right('╮');
+        self.set_hor_top('─');
+        self.set_hor_bottom('─');
+        self.set_vert_left('│');
+        self.set_vert_right('│');
+        self.set_bottom_left('╰');
+        self.set_bottom_right('╯');
+    }
+
+    fn heavy(&mut self) {
+        //self.frame_variants = ['┏', '┓', '━', '━', '┃', '┃', '┗', '┛'];
+        self.set_top_left('┏');
+        self.set_top_right('┓');
+        self.set_hor_top('━');
+        self.set_hor_bottom('━');
+        self.set_vert_left('┃');
+        self.set_vert_right('┃');
+        self.set_bottom_left('┗');
+        self.set_bottom_right('┛');
+    }
+
+    fn torn(&mut self) {
+        //self.frame_variants = ['', '', '', '', '¦', '¦', '', ''];
+        self.set_top_left('');
+        self.set_top_right('');
+        self.set_hor_top('');
+        self.set_hor_bottom('');
+        self.set_vert_left('¦');
+        self.set_vert_right('¦');
+        self.set_bottom_left('');
+        self.set_bottom_right('');
+    }
+
+    fn variants(&mut self, app: &ArgMatches) -> &Self {
         if let Some(variants) = app.get_one::<String>("frame") {
             match variants.as_str() {
-                "duble" => Self::duble(),
-                "round" => Self::round(),
-                "heavy" => Self::heavy(),
-                "torn" => Self::torn(),
-                _ => Self::default(),
+                "duble" => {self.duble(); self},
+                "round" => {self.round(); self},
+                "heavy" => {self.heavy(); self},
+                "torn" => {self.torn(); self},
+                _ => self,
             }
         } else {
-            Self::default()
+            self
         }
     }
-    fn frame_custom(&mut self, app: &ArgMatches) -> &Self {
+    fn custom(&mut self, app: &ArgMatches) -> &Self {
         self.set_hor_top(*app.get_one("horizontal-top").unwrap_or(&self.get_hor_top()));
         self.set_hor_bottom(
             *app.get_one("horizontal-bottom")
@@ -149,22 +196,10 @@ impl Frame {
 
 fn main() -> Result<(), Box<dyn Error>> {
     let app = app_commands();
-    let mut frame = Frame::frame_variants(&app);
-    frame.frame_custom(&app);
-    let mut buff = String::new();
-
-    match app.get_one::<PathBuf>("file") {
-        Some(path) => buff = fs::read_to_string(path)?,
-        None => {
-            stdin().read_to_string(&mut buff)?;
-        }
-    }
-
-    let expand = *(app.get_one("expand").unwrap_or(&0u8)) as usize;
-    let max_line_len: usize = match buff.lines().map(|line| line.chars().count()).max() {
-        Some(value) => value + expand * 2,
-        None => return Ok(()),
-    };
+    let mut frame = Frame::default();
+    frame.read(&app);
+    frame.custom(&app);
+    frame.variants(&app);
 
     let color = if let Some(color) = app.get_one::<String>("color") {
         match color.as_str() {
@@ -184,32 +219,32 @@ fn main() -> Result<(), Box<dyn Error>> {
     let hor_top_line = format!(
         "{top_left}{hor_top}{top_right}",
         top_left = frame.get_top_left(),
-        hor_top = frame.get_hor_top().to_string().repeat(max_line_len),
+        hor_top = frame.get_hor_top().to_string().repeat(frame.max_line_len),
         top_right = frame.get_top_right()
     )
     .color(color);
     let hor_buttom_line = format!(
         "{bottom_left}{hor_bottom}{bottom_right}",
         bottom_left = frame.get_bottom_left(),
-        hor_bottom = frame.get_hor_buttom().to_string().repeat(max_line_len),
+        hor_bottom = frame.get_hor_buttom().to_string().repeat(frame.max_line_len),
         bottom_right = frame.get_bottom_right()
     )
     .color(color);
     let vrt_left = String::from(frame.get_vert_left()).color(color);
     let vrt_right = String::from(frame.get_vert_right()).color(color);
 
-    let hor_line = format!("{hor_line}\n", hor_line = " ".repeat(max_line_len)).repeat(expand);
+    let hor_line = format!("{hor_line}\n", hor_line = " ".repeat(frame.max_line_len)).repeat(frame.expand);
 
-    let buff_line = format!("{hor_top_line}\n{hor_line}{buff}{hor_line}{hor_buttom_line}\n");
+    let buff_line = format!("{hor_top_line}\n{hor_line}{buff}{hor_line}{hor_buttom_line}\n", buff = frame.line_buff);
 
     for current_line in buff_line.lines() {
         let current_line_len = current_line.chars().count();
 
-        let out_line = if max_line_len < current_line_len {
+        let out_line = if frame.max_line_len < current_line_len {
             format!("{current_line}\n")
         } else {
             let mut left = 0;
-            let line_len = max_line_len - current_line_len;
+            let line_len = frame.max_line_len - current_line_len;
 
             if let Some(aling) = app.get_one::<String>("alignment") {
                 match aling.as_str() {
