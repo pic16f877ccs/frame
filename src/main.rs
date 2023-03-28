@@ -9,7 +9,7 @@ use std::io::{stdin, Read, Write};
 use std::path::PathBuf;
 
 struct Frame<'a> {
-    frame_variants: [char; 8],
+    frame_variants: [char; 10],
     max_line_len: usize,
     expand: usize,
     color: &'a str,
@@ -22,7 +22,7 @@ struct Frame<'a> {
 impl Default for Frame<'_> {
     fn default() -> Self {
         Self {
-            frame_variants: ['┌', '┐', '─', '─', '│', '│', '└', '┘'],
+            frame_variants: ['┌', '┐', '─', '─', '│', '│', '└', '┘', '├', '┤'],
             max_line_len: 0,
             expand: 0,
             fill: ' ',
@@ -92,25 +92,25 @@ impl Frame<'_> {
 
     fn duble(&mut self) {
         for (i, elem) in self.frame_variants.iter_mut().enumerate() {
-            *elem = ['╔', '╗', '═', '═', '║', '║', '╚', '╝'][i];
+            *elem = ['╔', '╗', '═', '═', '║', '║', '╚', '╝', '╠', '╣'][i];
         }
     }
 
     fn round(&mut self) {
         for (i, elem) in self.frame_variants.iter_mut().enumerate() {
-            *elem = ['╭', '╮', '─', '─', '│', '│', '╰', '╯'][i];
+            *elem = ['╭', '╮', '─', '─', '│', '│', '╰', '╯', '├', '┤'][i];
         }
     }
 
     fn heavy(&mut self) {
         for (i, elem) in self.frame_variants.iter_mut().enumerate() {
-            *elem = ['┏', '┓', '━', '━', '┃', '┃', '┗', '┛'][i];
+            *elem = ['┏', '┓', '━', '━', '┃', '┃', '┗', '┛', '┣', '┫'][i];
         }
     }
 
     fn torn(&mut self) {
         for (i, elem) in self.frame_variants.iter_mut().enumerate() {
-            *elem = ['', '', '', '', '¦', '¦', '', ''][i];
+            *elem = ['┏', '┓', '━', '━', '╏', '╏', '┗', '┛', '┣', '┫'][i];
         }
     }
 
@@ -189,6 +189,14 @@ impl Frame<'_> {
         self.frame_variants[7]
     }
 
+    fn get_vert_hor_left(&self) -> char {
+        self.frame_variants[8]
+    }
+
+    fn get_vert_hor_right(&self) -> char {
+        self.frame_variants[9]
+    }
+
     fn get_fill(&self) -> char {
         self.fill
     }
@@ -236,6 +244,16 @@ impl Frame<'_> {
         self.frame_variants[7] = c;
         self
     }
+
+    fn set_vert_hor_left(&mut self, c: char) -> &Self {
+        self.frame_variants[8] = c;
+        self
+    }
+
+    fn set_vert_hor_right(&mut self, c: char) -> &Self {
+        self.frame_variants[9] = c;
+        self
+    }
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -245,8 +263,19 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let vrt_left = String::from(frame.get_vert_left()).color(frame.color);
     let vrt_right = String::from(frame.get_vert_right()).color(frame.color);
-    let hor_line =
-        format!("{hor_line}\n", hor_line = String::from(frame.fill).repeat(frame.max_line_len)).repeat(frame.expand);
+    let hor_line = format!(
+        "{hor_line}\n",
+        hor_line = String::from(frame.fill).repeat(frame.max_line_len)
+    )
+    .repeat(frame.expand);
+    let empty_line = format!(
+        "{vrt_hor_left}{space_line}{vrt_hor_right}",
+        space_line = String::from(frame.get_hor_top())
+            .repeat(frame.max_line_len)
+            .color(frame.color),
+        vrt_hor_left = String::from(frame.get_vert_hor_left()).color(frame.color),
+        vrt_hor_right = String::from(frame.get_vert_hor_right()).color(frame.color),
+    );
 
     frame.line_buff = format!(
         "{hor_top_line}\n{hor_line}{buff}{hor_line}{hor_bottom_line}\n",
@@ -260,6 +289,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         let out_line = if frame.max_line_len < current_line_len {
             format!("{current_line}\n")
+        } else if current_line_len == 0 && app.get_flag("blank") {
+            format!("{empty_line}\n")
         } else {
             let mut left = 0;
             let line_len = frame.max_line_len - current_line_len;
@@ -405,6 +436,16 @@ fn app_commands() -> ArgMatches {
                 .help("Sets the bottom right corner")
                 .value_parser(value_parser!(char))
                 .num_args(1)
+                .required(false),
+        )
+        .arg(
+            Arg::new("blank")
+                .short('b')
+                .long("blank")
+                .value_name("CHARACTER")
+                .action(clap::ArgAction::SetTrue)
+                .help("Insert into blank line")
+                .num_args(0)
                 .required(false),
         )
         .arg(
