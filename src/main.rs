@@ -13,11 +13,10 @@ struct Frame<'a> {
     max_line_len: usize,
     expand: usize,
     color: &'a str,
+    fill: char,
     hor_top_line: String,
     hor_bottom_line: String,
     line_buff: String,
-    //vrt_left: String,
-    //vrt_right: String,
 }
 
 impl Default for Frame<'_> {
@@ -26,12 +25,11 @@ impl Default for Frame<'_> {
             frame_variants: ['┌', '┐', '─', '─', '│', '│', '└', '┘'],
             max_line_len: 0,
             expand: 0,
+            fill: ' ',
             color: "",
             hor_top_line: String::new(),
             hor_bottom_line: String::new(),
             line_buff: String::new(),
-            //vrt_left: String::new(),
-            //vrt_right: String::new(),
         }
     }
 }
@@ -148,6 +146,7 @@ impl Frame<'_> {
         self.set_vert_right(*app.get_one("vert-right").unwrap_or(&self.get_vert_right()));
         self.set_top_left(*app.get_one("top-left").unwrap_or(&self.get_top_left()));
         self.set_top_right(*app.get_one("top-right").unwrap_or(&self.get_top_right()));
+        self.set_fill(*app.get_one("fill").unwrap_or(&self.get_fill()));
         self.set_bottom_left(
             *app.get_one("bottom-left")
                 .unwrap_or(&self.get_bottom_left()),
@@ -188,6 +187,14 @@ impl Frame<'_> {
 
     fn get_bottom_right(&self) -> char {
         self.frame_variants[7]
+    }
+
+    fn get_fill(&self) -> char {
+        self.fill
+    }
+
+    fn set_fill(&mut self, c: char) {
+        self.fill = c;
     }
 
     fn set_top_left(&mut self, c: char) -> &Self {
@@ -239,10 +246,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     let vrt_left = String::from(frame.get_vert_left()).color(frame.color);
     let vrt_right = String::from(frame.get_vert_right()).color(frame.color);
     let hor_line =
-        format!("{hor_line}\n", hor_line = " ".repeat(frame.max_line_len)).repeat(frame.expand);
+        format!("{hor_line}\n", hor_line = String::from(frame.fill).repeat(frame.max_line_len)).repeat(frame.expand);
 
     frame.line_buff = format!(
-        "{hor_top_line}{hor_line}{buff}{hor_line}{hor_bottom_line}\n",
+        "{hor_top_line}\n{hor_line}{buff}{hor_line}{hor_bottom_line}\n",
         hor_top_line = frame.hor_top_line.color(frame.color),
         buff = frame.line_buff,
         hor_bottom_line = frame.hor_bottom_line.color(frame.color),
@@ -267,8 +274,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             format!(
                 "{vrt_left}{left_fill}{current_line}{right_fill}{vrt_right}\n",
-                left_fill = " ".repeat(left),
-                right_fill = " ".repeat(line_len - left),
+                left_fill = String::from(frame.fill).repeat(left),
+                right_fill = String::from(frame.fill).repeat(line_len - left),
             )
         };
 
@@ -311,6 +318,15 @@ fn app_commands() -> ArgMatches {
                 .value_name("NUMBER")
                 .value_parser(value_parser!(u8).range(1..100))
                 .help("Enlarge frame")
+                .required(false),
+        )
+        .arg(
+            Arg::new("fill")
+                .long("fill")
+                .num_args(1)
+                .value_name("CHARACTER")
+                .value_parser(value_parser!(char))
+                .help("Sets the fill character")
                 .required(false),
         )
         .arg(
