@@ -8,25 +8,35 @@ use std::fs;
 use std::io::{stdin, Read, Write};
 use std::path::PathBuf;
 
-struct Frame {
+struct Frame<'a> {
     frame_variants: [char; 8],
-    line_buff: String,
     max_line_len: usize,
     expand: usize,
+    color: &'a str,
+    hor_top_line: String,
+    hor_bottom_line: String,
+    line_buff: String,
+    //vrt_left: String,
+    //vrt_right: String,
 }
 
-impl Default for Frame {
+impl Default for Frame<'_> {
     fn default() -> Self {
         Self {
             frame_variants: ['┌', '┐', '─', '─', '│', '│', '└', '┘'],
-            line_buff: String::new(),
             max_line_len: 0,
             expand: 0,
+            color: "",
+            hor_top_line: String::new(),
+            hor_bottom_line: String::new(),
+            line_buff: String::new(),
+            //vrt_left: String::new(),
+            //vrt_right: String::new(),
         }
     }
 }
 
-impl Frame {
+impl Frame<'_> {
     fn new() -> Self {
         Self::default()
     }
@@ -49,6 +59,35 @@ impl Frame {
             .max()
             .ok_or("unknown maximum line length")?
             + self.expand * 2;
+
+        self.hor_top_line = format!(
+            "{top_left}{hor_top}{top_right}",
+            top_left = self.get_top_left(),
+            hor_top = self.get_hor_top().to_string().repeat(self.max_line_len),
+            top_right = self.get_top_right()
+        );
+
+        self.hor_bottom_line = format!(
+            "{bottom_left}{hor_bottom}{bottom_right}",
+            bottom_left = self.get_bottom_left(),
+            hor_bottom = self.get_hor_buttom().to_string().repeat(self.max_line_len),
+            bottom_right = self.get_bottom_right()
+        );
+
+        self.color = if let Some(color) = app.get_one::<String>("color") {
+            match color.as_str() {
+                "red" => "red",
+                "green" => "green",
+                "yellow" => "yellow",
+                "blue" => "blue",
+                "magenta" => "magenta",
+                "cyan" => "cyan",
+                "white" => "white",
+                _ => "black",
+            }
+        } else {
+            "black"
+        };
 
         Ok(())
     }
@@ -98,6 +137,7 @@ impl Frame {
             ()
         }
     }
+
     fn custom(&mut self, app: &ArgMatches) {
         self.set_hor_top(*app.get_one("horizontal-top").unwrap_or(&self.get_hor_top()));
         self.set_hor_bottom(
@@ -121,24 +161,31 @@ impl Frame {
     fn get_top_left(&self) -> char {
         self.frame_variants[0]
     }
+
     fn get_top_right(&self) -> char {
         self.frame_variants[1]
     }
+
     fn get_hor_top(&self) -> char {
         self.frame_variants[2]
     }
+
     fn get_hor_buttom(&self) -> char {
         self.frame_variants[3]
     }
+
     fn get_vert_left(&self) -> char {
         self.frame_variants[4]
     }
+
     fn get_vert_right(&self) -> char {
         self.frame_variants[5]
     }
+
     fn get_bottom_left(&self) -> char {
         self.frame_variants[6]
     }
+
     fn get_bottom_right(&self) -> char {
         self.frame_variants[7]
     }
@@ -147,43 +194,41 @@ impl Frame {
         self.frame_variants[0] = c;
         self
     }
+
     fn set_top_right(&mut self, c: char) -> &Self {
         self.frame_variants[1] = c;
         self
     }
+
     fn set_hor_top(&mut self, c: char) -> &Self {
         self.frame_variants[2] = c;
         self
     }
+
     fn set_hor_bottom(&mut self, c: char) -> &Self {
         self.frame_variants[3] = c;
         self
     }
+
     fn set_vert_left(&mut self, c: char) -> &Self {
         self.frame_variants[4] = c;
         self
     }
+
     fn set_vert_right(&mut self, c: char) -> &Self {
         self.frame_variants[5] = c;
         self
     }
+
     fn set_bottom_left(&mut self, c: char) -> &Self {
         self.frame_variants[6] = c;
         self
     }
+
     fn set_bottom_right(&mut self, c: char) -> &Self {
         self.frame_variants[7] = c;
         self
     }
-
-    //fn hor_top_line(app: &ArgMatches) -> String {
-    //    format!(
-    //        "{top_left}{hor_top}{top_right}",
-    //        top_left = self.get_top_left(),
-    //        hor_top = self.get_hor_top().to_string().repeat(max_line_len),
-    //        top_right = self.get_top_right()
-    //    )
-    //}
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -191,50 +236,19 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut frame = Frame::new();
     frame.read(&app)?;
 
-    let color = if let Some(color) = app.get_one::<String>("color") {
-        match color.as_str() {
-            "red" => "red",
-            "green" => "green",
-            "yellow" => "yellow",
-            "blue" => "blue",
-            "magenta" => "magenta",
-            "cyan" => "cyan",
-            "white" => "white",
-            _ => "black",
-        }
-    } else {
-        "black"
-    };
-
-    let hor_top_line = format!(
-        "{top_left}{hor_top}{top_right}",
-        top_left = frame.get_top_left(),
-        hor_top = frame.get_hor_top().to_string().repeat(frame.max_line_len),
-        top_right = frame.get_top_right()
-    )
-    .color(color);
-    let hor_buttom_line = format!(
-        "{bottom_left}{hor_bottom}{bottom_right}",
-        bottom_left = frame.get_bottom_left(),
-        hor_bottom = frame
-            .get_hor_buttom()
-            .to_string()
-            .repeat(frame.max_line_len),
-        bottom_right = frame.get_bottom_right()
-    )
-    .color(color);
-    let vrt_left = String::from(frame.get_vert_left()).color(color);
-    let vrt_right = String::from(frame.get_vert_right()).color(color);
-
+    let vrt_left = String::from(frame.get_vert_left()).color(frame.color);
+    let vrt_right = String::from(frame.get_vert_right()).color(frame.color);
     let hor_line =
         format!("{hor_line}\n", hor_line = " ".repeat(frame.max_line_len)).repeat(frame.expand);
 
-    let buff_line = format!(
-        "{hor_top_line}\n{hor_line}{buff}{hor_line}{hor_buttom_line}\n",
-        buff = frame.line_buff
+    frame.line_buff = format!(
+        "{hor_top_line}{hor_line}{buff}{hor_line}{hor_bottom_line}\n",
+        hor_top_line = frame.hor_top_line.color(frame.color),
+        buff = frame.line_buff,
+        hor_bottom_line = frame.hor_bottom_line.color(frame.color),
     );
 
-    for current_line in buff_line.lines() {
+    for current_line in frame.line_buff.lines() {
         let current_line_len = current_line.chars().count();
 
         let out_line = if frame.max_line_len < current_line_len {
