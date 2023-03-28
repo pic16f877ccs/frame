@@ -27,9 +27,13 @@ impl Default for Frame {
 }
 
 impl Frame {
-    fn read(&mut self, app: &ArgMatches) -> Result<&Self, Box<dyn error::Error>> {
-        self.frame_variants = ['┌', '┐', '─', '─', '│', '│', '└', '┘'];
+    fn new() -> Self {
+        Self::default()
+    }
 
+    fn read(&mut self, app: &ArgMatches) -> Result<(), Box<dyn error::Error>> {
+        self.variants(&app);
+        self.custom(&app);
         match app.get_one::<PathBuf>("file") {
             Some(path) => self.line_buff = fs::read_to_string(path)?,
             None => {
@@ -38,73 +42,63 @@ impl Frame {
         }
 
         self.expand = *(app.get_one("expand").unwrap_or(&0u8)) as usize;
-        self.max_line_len = self.line_buff.lines().map(|line| line.chars().count()).max().ok_or("error")? + self.expand * 2;
+        self.max_line_len = self
+            .line_buff
+            .lines()
+            .map(|line| line.chars().count())
+            .max()
+            .ok_or("unknown maximum line length")?
+            + self.expand * 2;
 
-        Ok(self)
+        Ok(())
     }
 
     fn duble(&mut self) {
-        //self.frame_variants = ['╔', '╗', '═', '═', '║', '║', '╚', '╝'];
-        self.set_top_left('╔');
-        self.set_top_right('╗');
-        self.set_hor_top('═');
-        self.set_hor_bottom('═');
-        self.set_vert_left('║');
-        self.set_vert_right('║');
-        self.set_bottom_left('╚');
-        self.set_bottom_right('╝');
+        for (i, elem) in self.frame_variants.iter_mut().enumerate() {
+            *elem = ['╔', '╗', '═', '═', '║', '║', '╚', '╝'][i];
+        }
     }
 
     fn round(&mut self) {
-        //self.frame_variants = ['╭', '╮', '─', '─', '│', '│', '╰', '╯'];
-        self.set_top_left('╭');
-        self.set_top_right('╮');
-        self.set_hor_top('─');
-        self.set_hor_bottom('─');
-        self.set_vert_left('│');
-        self.set_vert_right('│');
-        self.set_bottom_left('╰');
-        self.set_bottom_right('╯');
+        for (i, elem) in self.frame_variants.iter_mut().enumerate() {
+            *elem = ['╭', '╮', '─', '─', '│', '│', '╰', '╯'][i];
+        }
     }
 
     fn heavy(&mut self) {
-        //self.frame_variants = ['┏', '┓', '━', '━', '┃', '┃', '┗', '┛'];
-        self.set_top_left('┏');
-        self.set_top_right('┓');
-        self.set_hor_top('━');
-        self.set_hor_bottom('━');
-        self.set_vert_left('┃');
-        self.set_vert_right('┃');
-        self.set_bottom_left('┗');
-        self.set_bottom_right('┛');
+        for (i, elem) in self.frame_variants.iter_mut().enumerate() {
+            *elem = ['┏', '┓', '━', '━', '┃', '┃', '┗', '┛'][i];
+        }
     }
 
     fn torn(&mut self) {
-        //self.frame_variants = ['', '', '', '', '¦', '¦', '', ''];
-        self.set_top_left('');
-        self.set_top_right('');
-        self.set_hor_top('');
-        self.set_hor_bottom('');
-        self.set_vert_left('¦');
-        self.set_vert_right('¦');
-        self.set_bottom_left('');
-        self.set_bottom_right('');
-    }
-
-    fn variants(&mut self, app: &ArgMatches) -> &Self {
-        if let Some(variants) = app.get_one::<String>("frame") {
-            match variants.as_str() {
-                "duble" => {self.duble(); self},
-                "round" => {self.round(); self},
-                "heavy" => {self.heavy(); self},
-                "torn" => {self.torn(); self},
-                _ => self,
-            }
-        } else {
-            self
+        for (i, elem) in self.frame_variants.iter_mut().enumerate() {
+            *elem = ['', '', '', '', '¦', '¦', '', ''][i];
         }
     }
-    fn custom(&mut self, app: &ArgMatches) -> &Self {
+
+    fn variants(&mut self, app: &ArgMatches) {
+        if let Some(variants) = app.get_one::<String>("frame") {
+            match variants.as_str() {
+                "duble" => {
+                    self.duble();
+                }
+                "round" => {
+                    self.round();
+                }
+                "heavy" => {
+                    self.heavy();
+                }
+                "torn" => {
+                    self.torn();
+                }
+                _ => (),
+            }
+        } else {
+            ()
+        }
+    }
+    fn custom(&mut self, app: &ArgMatches) {
         self.set_hor_top(*app.get_one("horizontal-top").unwrap_or(&self.get_hor_top()));
         self.set_hor_bottom(
             *app.get_one("horizontal-bottom")
@@ -122,7 +116,6 @@ impl Frame {
             *app.get_one("bottom-right")
                 .unwrap_or(&self.get_bottom_right()),
         );
-        self
     }
 
     fn get_top_left(&self) -> char {
@@ -193,13 +186,10 @@ impl Frame {
     //}
 }
 
-
 fn main() -> Result<(), Box<dyn Error>> {
     let app = app_commands();
-    let mut frame = Frame::default();
-    frame.read(&app);
-    frame.custom(&app);
-    frame.variants(&app);
+    let mut frame = Frame::new();
+    frame.read(&app)?;
 
     let color = if let Some(color) = app.get_one::<String>("color") {
         match color.as_str() {
@@ -226,16 +216,23 @@ fn main() -> Result<(), Box<dyn Error>> {
     let hor_buttom_line = format!(
         "{bottom_left}{hor_bottom}{bottom_right}",
         bottom_left = frame.get_bottom_left(),
-        hor_bottom = frame.get_hor_buttom().to_string().repeat(frame.max_line_len),
+        hor_bottom = frame
+            .get_hor_buttom()
+            .to_string()
+            .repeat(frame.max_line_len),
         bottom_right = frame.get_bottom_right()
     )
     .color(color);
     let vrt_left = String::from(frame.get_vert_left()).color(color);
     let vrt_right = String::from(frame.get_vert_right()).color(color);
 
-    let hor_line = format!("{hor_line}\n", hor_line = " ".repeat(frame.max_line_len)).repeat(frame.expand);
+    let hor_line =
+        format!("{hor_line}\n", hor_line = " ".repeat(frame.max_line_len)).repeat(frame.expand);
 
-    let buff_line = format!("{hor_top_line}\n{hor_line}{buff}{hor_line}{hor_buttom_line}\n", buff = frame.line_buff);
+    let buff_line = format!(
+        "{hor_top_line}\n{hor_line}{buff}{hor_line}{hor_buttom_line}\n",
+        buff = frame.line_buff
+    );
 
     for current_line in buff_line.lines() {
         let current_line_len = current_line.chars().count();
