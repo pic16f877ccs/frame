@@ -12,6 +12,7 @@ struct Frame<'a> {
     frame_variants: [char; 10],
     max_line_len: usize,
     expand: usize,
+    expand_width: usize,
     color: &'a str,
     fill: char,
     hor_top_line: String,
@@ -25,6 +26,7 @@ impl Default for Frame<'_> {
             frame_variants: ['┌', '┐', '─', '─', '│', '│', '└', '┘', '├', '┤'],
             max_line_len: 0,
             expand: 0,
+            expand_width: 0,
             fill: ' ',
             color: "",
             hor_top_line: String::new(),
@@ -50,13 +52,14 @@ impl Frame<'_> {
         }
 
         self.expand = *(app.get_one("expand").unwrap_or(&0u8)) as usize;
+        self.expand_width = *(app.get_one("expand_width").unwrap_or(&0u8)) as usize;
         self.max_line_len = self
             .line_buff
             .lines()
             .map(|line| line.chars().count())
             .max()
             .ok_or("unknown maximum line length")?
-            + self.expand * 2;
+            + self.expand * 2 + self.expand_width * 2;
 
         self.hor_top_line = format!(
             "{top_left}{hor_top}{top_right}",
@@ -137,22 +140,22 @@ impl Frame<'_> {
     }
 
     fn custom(&mut self, app: &ArgMatches) {
-        self.set_hor_top(*app.get_one("horizontal-top").unwrap_or(&self.get_hor_top()));
+        self.set_hor_top(*app.get_one("horizontal_top").unwrap_or(&self.get_hor_top()));
         self.set_hor_bottom(
-            *app.get_one("horizontal-bottom")
+            *app.get_one("horizontal_bottom")
                 .unwrap_or(&self.get_hor_buttom()),
         );
-        self.set_vert_left(*app.get_one("vert-left").unwrap_or(&self.get_vert_left()));
-        self.set_vert_right(*app.get_one("vert-right").unwrap_or(&self.get_vert_right()));
-        self.set_top_left(*app.get_one("top-left").unwrap_or(&self.get_top_left()));
-        self.set_top_right(*app.get_one("top-right").unwrap_or(&self.get_top_right()));
+        self.set_vert_left(*app.get_one("vert_left").unwrap_or(&self.get_vert_left()));
+        self.set_vert_right(*app.get_one("vert_right").unwrap_or(&self.get_vert_right()));
+        self.set_top_left(*app.get_one("top_left").unwrap_or(&self.get_top_left()));
+        self.set_top_right(*app.get_one("top_right").unwrap_or(&self.get_top_right()));
         self.set_fill(*app.get_one("fill").unwrap_or(&self.get_fill()));
         self.set_bottom_left(
-            *app.get_one("bottom-left")
+            *app.get_one("bottom_left")
                 .unwrap_or(&self.get_bottom_left()),
         );
         self.set_bottom_right(
-            *app.get_one("bottom-right")
+            *app.get_one("bottom_right")
                 .unwrap_or(&self.get_bottom_right()),
         );
     }
@@ -284,12 +287,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         hor_bottom_line = frame.hor_bottom_line.color(frame.color),
     );
 
+    println!("{}", app.get_flag("blank_line"));
+
     for current_line in frame.line_buff.lines() {
         let current_line_len = current_line.chars().count();
 
         let out_line = if frame.max_line_len < current_line_len {
             format!("{current_line}\n")
-        } else if current_line_len == 0 && app.get_flag("blank") {
+        } else if (current_line_len == 0) && app.get_flag("blank_line") {
             format!("{empty_line}\n")
         } else {
             let mut left = 0;
@@ -352,6 +357,15 @@ fn app_commands() -> ArgMatches {
                 .required(false),
         )
         .arg(
+            Arg::new("expand_width")
+                .long("expand-width")
+                .num_args(1)
+                .value_name("NUMBER")
+                .value_parser(value_parser!(u8).range(1..100))
+                .help("Enlarge frame width")
+                .required(false),
+        )
+        .arg(
             Arg::new("fill")
                 .long("fill")
                 .num_args(1)
@@ -361,7 +375,7 @@ fn app_commands() -> ArgMatches {
                 .required(false),
         )
         .arg(
-            Arg::new("top-left")
+            Arg::new("top_left")
                 .short('S')
                 .long("top-left")
                 .num_args(1)
@@ -371,7 +385,7 @@ fn app_commands() -> ArgMatches {
                 .required(false),
         )
         .arg(
-            Arg::new("top-right")
+            Arg::new("top_right")
                 .short('E')
                 .long("top-right")
                 .help("Sets the top right corner")
@@ -381,7 +395,7 @@ fn app_commands() -> ArgMatches {
                 .required(false),
         )
         .arg(
-            Arg::new("horizontal-top")
+            Arg::new("horizontal_top")
                 .short('H')
                 .long("hor-top")
                 .help("Sets the view of horizontal top line")
@@ -391,7 +405,7 @@ fn app_commands() -> ArgMatches {
                 .required(false),
         )
         .arg(
-            Arg::new("horizontal-bottom")
+            Arg::new("horizontal_bottom")
                 .long("hor-bottom")
                 .help("Sets the view of horizontal bottom line")
                 .value_parser(value_parser!(char))
@@ -400,7 +414,7 @@ fn app_commands() -> ArgMatches {
                 .required(false),
         )
         .arg(
-            Arg::new("vert-left")
+            Arg::new("vert_left")
                 .short('V')
                 .long("vert-left")
                 .help("Sets the view of vertical left line")
@@ -410,7 +424,7 @@ fn app_commands() -> ArgMatches {
                 .required(false),
         )
         .arg(
-            Arg::new("vert-right")
+            Arg::new("vert_right")
                 .long("vert-right")
                 .help("Sets the view of vertical right line")
                 .value_parser(value_parser!(char))
@@ -419,7 +433,7 @@ fn app_commands() -> ArgMatches {
                 .required(false),
         )
         .arg(
-            Arg::new("bottom-left")
+            Arg::new("bottom_left")
                 .short('s')
                 .long("bottom-left")
                 .value_name("CHARACTER")
@@ -429,7 +443,7 @@ fn app_commands() -> ArgMatches {
                 .required(false),
         )
         .arg(
-            Arg::new("bottom-right")
+            Arg::new("bottom_right")
                 .short('e')
                 .long("bottom-right")
                 .value_name("CHARACTER")
@@ -439,10 +453,9 @@ fn app_commands() -> ArgMatches {
                 .required(false),
         )
         .arg(
-            Arg::new("blank")
+            Arg::new("blank_line")
                 .short('b')
                 .long("blank")
-                .value_name("CHARACTER")
                 .action(clap::ArgAction::SetTrue)
                 .help("Insert into blank line")
                 .num_args(0)
