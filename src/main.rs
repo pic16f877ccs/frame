@@ -59,7 +59,8 @@ impl Frame<'_> {
             .map(|line| line.chars().count())
             .max()
             .ok_or("unknown maximum line length")?
-            + self.expand * 2 + self.expand_width * 2;
+            + self.expand * 2
+            + self.expand_width * 2;
 
         self.hor_top_line = format!(
             "{top_left}{hor_top}{top_right}",
@@ -263,6 +264,34 @@ fn main() -> Result<(), Box<dyn Error>> {
     let app = app_commands();
     let mut frame = Frame::new();
     frame.read(&app)?;
+    let elem = ['╔', '═', '╗', '║', '║', '╚', '═', '╝', '╠', '╣'];
+
+    let mut iter = elem.iter().cloned();
+    let h_left = iter.next();
+    let h_line = iter.next();
+    let h_right = iter.next();
+    let n_line = "\n".chars().next();
+    let v_left = iter.next();
+    let s_line = " ".chars().next();
+    let v_right = iter.next();
+    let new_line = "\n".chars().next();
+    let extend_line = v_left
+        .iter()
+        .chain(s_line.iter().cycle().take(frame.max_line_len))
+        .chain(v_right.iter())
+        .chain(new_line.iter());
+
+    let hor_top_lin = h_left
+        .iter()
+        .chain(h_line.iter().cycle().take(frame.max_line_len))
+        .chain(h_right.iter())
+        .chain(n_line.iter())
+        .chain(
+            extend_line
+                .cycle()
+                .take((frame.max_line_len + 3) * frame.expand),
+        )
+        .collect::<String>();
 
     let vrt_left = String::from(frame.get_vert_left()).color(frame.color);
     let vrt_right = String::from(frame.get_vert_right()).color(frame.color);
@@ -281,8 +310,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     frame.line_buff = format!(
-        "{hor_top_line}\n{hor_line}{buff}{hor_line}{hor_bottom_line}\n",
-        hor_top_line = frame.hor_top_line.color(frame.color),
+        "{hor_top_lin}{hor_line}{buff}{hor_line}{hor_bottom_line}\n",
+        //hor_top_line = frame.hor_top_line.color(frame.color),
         buff = frame.line_buff,
         hor_bottom_line = frame.hor_bottom_line.color(frame.color),
     );
