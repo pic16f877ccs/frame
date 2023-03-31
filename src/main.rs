@@ -268,11 +268,15 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut iter = elem.iter().cloned();
     let h_left = iter.next();
+    let hor_left = (0..1).map(|_| frame.get_top_left()).next();
+    let hor_top = (0..1).map(|_| frame.get_hor_top()).next();
+    let hor_right = (0..1).map(|_| frame.get_top_right()).next();
+    let hor_new_line = (0..1).map(|_| '\n').next();
     let h_line = iter.next();
     let h_right = iter.next();
     let n_line = "\n".chars().next();
     let v_left = iter.next();
-    let s_line = " ".chars().next();
+    let s_line = (0..1).map(|_| frame.fill).next();
     let v_right = iter.next();
     let new_line = "\n".chars().next();
     let extend_line = v_left
@@ -281,17 +285,18 @@ fn main() -> Result<(), Box<dyn Error>> {
         .chain(v_right.iter())
         .chain(new_line.iter());
 
-    let hor_top_lin = h_left
+    let hor_top_lin = hor_left
         .iter()
-        .chain(h_line.iter().cycle().take(frame.max_line_len))
-        .chain(h_right.iter())
-        .chain(n_line.iter())
+        .chain(hor_top.iter().cycle().take(frame.max_line_len))
+        .chain(hor_right.iter())
+        .chain(hor_new_line.iter())
         .chain(
             extend_line
                 .cycle()
                 .take((frame.max_line_len + 3) * frame.expand),
         )
         .collect::<String>();
+
 
     let vrt_left = String::from(frame.get_vert_left()).color(frame.color);
     let vrt_right = String::from(frame.get_vert_right()).color(frame.color);
@@ -310,7 +315,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     frame.line_buff = format!(
-        "{hor_top_lin}{hor_line}{buff}{hor_line}{hor_bottom_line}\n",
+        //"{hor_top_line}{hor_line}{buff}{hor_line}{hor_bottom_line}\n",
+        "{hor_top_lin}{buff}{hor_line}{hor_bottom_line}\n",
         //hor_top_line = frame.hor_top_line.color(frame.color),
         buff = frame.line_buff,
         hor_bottom_line = frame.hor_bottom_line.color(frame.color),
