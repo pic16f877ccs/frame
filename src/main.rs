@@ -6,6 +6,7 @@ use colored::Colorize;
 use std::error::{self, Error};
 use std::fs;
 use std::io::{stdin, Read, Write};
+use std::iter;
 use std::path::PathBuf;
 
 struct Frame<'a> {
@@ -264,39 +265,30 @@ fn main() -> Result<(), Box<dyn Error>> {
     let app = app_commands();
     let mut frame = Frame::new();
     frame.read(&app)?;
-    let elem = ['╔', '═', '╗', '║', '║', '╚', '═', '╝', '╠', '╣'];
 
-    let mut iter = elem.iter().cloned();
-    let h_left = iter.next();
-    let hor_left = (0..1).map(|_| frame.get_top_left()).next();
-    let hor_top = (0..1).map(|_| frame.get_hor_top()).next();
-    let hor_right = (0..1).map(|_| frame.get_top_right()).next();
-    let hor_new_line = (0..1).map(|_| '\n').next();
-    let h_line = iter.next();
-    let h_right = iter.next();
-    let n_line = "\n".chars().next();
-    let v_left = iter.next();
-    let s_line = (0..1).map(|_| frame.fill).next();
-    let v_right = iter.next();
-    let new_line = "\n".chars().next();
-    let extend_line = v_left
-        .iter()
-        .chain(s_line.iter().cycle().take(frame.max_line_len))
-        .chain(v_right.iter())
-        .chain(new_line.iter());
+    let top_new_line = (0..1).map(|_| '\n').next();
+    let vrt_left = (0..1).map(|_| frame.get_vert_left()).next();
+    let expand_line = (0..1).into_iter().map(|_| frame.fill).next();
+    let vrt_right = (0..1).map(|_| frame.get_vert_right()).next();
+    let expand_new_line = (0..1).map(|_| '\n').next();
 
-    let hor_top_lin = hor_left
-        .iter()
-        .chain(hor_top.iter().cycle().take(frame.max_line_len))
-        .chain(hor_right.iter())
-        .chain(hor_new_line.iter())
+    let expand_line = vrt_left
+        .into_iter()
+        .chain(expand_line.into_iter().cycle().take(frame.max_line_len))
+        .chain(vrt_right.into_iter())
+        .chain(expand_new_line.into_iter());
+
+    let hor_top_lin = iter::repeat_with(|| frame.get_top_left())
+        .take(1)
+        .chain(iter::repeat_with(|| frame.get_hor_top()).take(frame.max_line_len))
+        .chain(iter::repeat_with(|| frame.get_top_right()).take(1))
+        .chain(iter::repeat_with(|| '\n').take(1))
         .chain(
-            extend_line
+            expand_line
                 .cycle()
                 .take((frame.max_line_len + 3) * frame.expand),
         )
         .collect::<String>();
-
 
     let vrt_left = String::from(frame.get_vert_left()).color(frame.color);
     let vrt_right = String::from(frame.get_vert_right()).color(frame.color);
@@ -321,8 +313,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         buff = frame.line_buff,
         hor_bottom_line = frame.hor_bottom_line.color(frame.color),
     );
-
-    println!("{}", app.get_flag("blank_line"));
 
     for current_line in frame.line_buff.lines() {
         let current_line_len = current_line.chars().count();
