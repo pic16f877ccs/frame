@@ -266,28 +266,23 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut frame = Frame::new();
     frame.read(&app)?;
 
-    let top_new_line = (0..1).map(|_| '\n').next();
-    let vrt_left = (0..1).map(|_| frame.get_vert_left()).next();
-    let expand_line = (0..1).into_iter().map(|_| frame.fill).next();
-    let vrt_right = (0..1).map(|_| frame.get_vert_right()).next();
-    let expand_new_line = (0..1).map(|_| '\n').next();
-
-    let expand_line = vrt_left
-        .into_iter()
-        .chain(expand_line.into_iter().cycle().take(frame.max_line_len))
-        .chain(vrt_right.into_iter())
-        .chain(expand_new_line.into_iter());
-
-    let hor_top_lin = iter::repeat_with(|| frame.get_top_left())
+    let new_line = '\n';
+    let new_line_iter = iter::repeat(new_line).take(1);
+    let enlarge = (frame.max_line_len + 3) * frame.expand;
+    let enlarge_line_iter = iter::repeat(frame.get_vert_left())
         .take(1)
-        .chain(iter::repeat_with(|| frame.get_hor_top()).take(frame.max_line_len))
-        .chain(iter::repeat_with(|| frame.get_top_right()).take(1))
-        .chain(iter::repeat_with(|| '\n').take(1))
-        .chain(
-            expand_line
-                .cycle()
-                .take((frame.max_line_len + 3) * frame.expand),
-        )
+        .chain(iter::repeat(frame.fill).take(frame.max_line_len))
+        .chain(iter::repeat(frame.get_vert_right()).take(1))
+        .chain(new_line_iter.clone())
+        .cycle()
+        .take(enlarge);
+
+    let hor_top_lin = iter::repeat(frame.get_top_left())
+        .take(1)
+        .chain(iter::repeat(frame.get_hor_top()).take(frame.max_line_len))
+        .chain(iter::repeat(frame.get_top_right()).take(1))
+        .chain(iter::repeat(new_line).take(1))
+        .chain(enlarge_line_iter.clone())
         .collect::<String>();
 
     let vrt_left = String::from(frame.get_vert_left()).color(frame.color);
