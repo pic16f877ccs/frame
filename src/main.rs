@@ -73,7 +73,7 @@ impl Frame<'_> {
         self.hor_bottom_line = format!(
             "{bottom_left}{hor_bottom}{bottom_right}",
             bottom_left = self.get_bottom_left(),
-            hor_bottom = self.get_hor_buttom().to_string().repeat(self.max_line_len),
+            hor_bottom = self.get_hor_bottom().to_string().repeat(self.max_line_len),
             bottom_right = self.get_bottom_right()
         );
 
@@ -145,7 +145,7 @@ impl Frame<'_> {
         self.set_hor_top(*app.get_one("horizontal_top").unwrap_or(&self.get_hor_top()));
         self.set_hor_bottom(
             *app.get_one("horizontal_bottom")
-                .unwrap_or(&self.get_hor_buttom()),
+                .unwrap_or(&self.get_hor_bottom()),
         );
         self.set_vert_left(*app.get_one("vert_left").unwrap_or(&self.get_vert_left()));
         self.set_vert_right(*app.get_one("vert_right").unwrap_or(&self.get_vert_right()));
@@ -174,7 +174,7 @@ impl Frame<'_> {
         self.frame_variants[2]
     }
 
-    fn get_hor_buttom(&self) -> char {
+    fn get_hor_bottom(&self) -> char {
         self.frame_variants[3]
     }
 
@@ -285,13 +285,16 @@ fn main() -> Result<(), Box<dyn Error>> {
         .chain(enlarge_line_iter.clone())
         .collect::<String>();
 
+    let hor_bottom_lin = enlarge_line_iter
+        .chain(iter::repeat(frame.get_bottom_left()).take(1))
+        .chain(iter::repeat(frame.get_hor_bottom()).take(frame.max_line_len))
+        .chain(iter::repeat(frame.get_bottom_right()).take(1))
+        .chain(iter::repeat(new_line).take(1))
+        .collect::<String>();
+
     let vrt_left = String::from(frame.get_vert_left()).color(frame.color);
     let vrt_right = String::from(frame.get_vert_right()).color(frame.color);
-    let hor_line = format!(
-        "{hor_line}\n",
-        hor_line = String::from(frame.fill).repeat(frame.max_line_len)
-    )
-    .repeat(frame.expand);
+
     let empty_line = format!(
         "{vrt_hor_left}{space_line}{vrt_hor_right}",
         space_line = String::from(frame.get_hor_top())
@@ -302,11 +305,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     frame.line_buff = format!(
-        //"{hor_top_line}{hor_line}{buff}{hor_line}{hor_bottom_line}\n",
-        "{hor_top_lin}{buff}{hor_line}{hor_bottom_line}\n",
-        //hor_top_line = frame.hor_top_line.color(frame.color),
+        "{hor_top_lin}{buff}{hor_bottom_lin}",
         buff = frame.line_buff,
-        hor_bottom_line = frame.hor_bottom_line.color(frame.color),
     );
 
     for current_line in frame.line_buff.lines() {
