@@ -1,341 +1,358 @@
-#![allow(dead_code)]
-#![allow(unused_variables)]
-#![allow(unused_mut)]
 use clap::{value_parser, Arg, ArgMatches, Command};
-use colored::Colorize;
+use colored::{Color, ColoredString, Colorize};
 use std::error::{self, Error};
 use std::fs;
-use std::io::{stdin, Read, Write};
+use std::io::{self, Read, Write};
 use std::iter;
 use std::path::PathBuf;
-
-struct Frame<'a> {
-    frame_variants: [char; 10],
-    max_line_len: usize,
-    expand: usize,
-    expand_width: usize,
-    color: &'a str,
-    fill: char,
-    hor_top_line: String,
-    hor_bottom_line: String,
-    line_buff: String,
-}
+use std::str::FromStr;
 
 impl Default for Frame<'_> {
     fn default() -> Self {
         Self {
-            frame_variants: ['┌', '┐', '─', '─', '│', '│', '└', '┘', '├', '┤'],
-            max_line_len: 0,
+            top_left_corner: "┌",
+            hor_top_line: "─",
+            top_right_corner: "┐",
+            vert_left: "│",
+            vert_right: "│",
+            bottom_left_corner: "└",
+            bottom_right_corner: "┘",
+            hor_bottom_line: "─",
+            fill: " ",
+            algn: Algn::Left,
             expand: 0,
             expand_width: 0,
-            fill: ' ',
-            color: "",
-            hor_top_line: String::new(),
-            hor_bottom_line: String::new(),
-            line_buff: String::new(),
+            color: Color::Black,
         }
     }
 }
 
-impl Frame<'_> {
-    fn new() -> Self {
-        Self::default()
+#[derive(Debug)]
+struct Frame<'a> {
+    top_left_corner: &'a str,
+    hor_top_line: &'a str,
+    top_right_corner: &'a str,
+    bottom_left_corner: &'a str,
+    bottom_right_corner: &'a str,
+    vert_left: &'a str,
+    vert_right: &'a str,
+    hor_bottom_line: &'a str,
+    fill: &'a str,
+    algn: Algn,
+    expand: usize,
+    expand_width: usize,
+    color: Color,
+}
+
+impl<'b> Frame<'b> {
+    fn frame_empty() -> Self {
+        Self {
+            top_left_corner: " ",
+            hor_top_line: " ",
+            top_right_corner: " ",
+            bottom_left_corner: " ",
+            bottom_right_corner: " ",
+            vert_left: " ",
+            vert_right: " ",
+            hor_bottom_line: " ",
+            ..Self::default()
+        }
+    }
+    fn frame_double() -> Self {
+        Self {
+            top_left_corner: "╔",
+            hor_top_line: "═",
+            top_right_corner: "╗",
+            bottom_left_corner: "╚",
+            bottom_right_corner: "╝",
+            vert_left: "║",
+            vert_right: "║",
+            hor_bottom_line: "═",
+            ..Self::default()
+        }
+    }
+    fn frame_hor_double() -> Self {
+        Self {
+            top_left_corner: "╒",
+            hor_top_line: "═",
+            top_right_corner: "╕",
+            bottom_left_corner: "╘",
+            bottom_right_corner: "╛",
+            hor_bottom_line: "═",
+            ..Self::default()
+        }
     }
 
-    fn read(&mut self, app: &ArgMatches) -> Result<(), Box<dyn error::Error>> {
-        self.variants(&app);
-        self.custom(&app);
-        match app.get_one::<PathBuf>("file") {
-            Some(path) => self.line_buff = fs::read_to_string(path)?,
-            None => {
-                stdin().read_to_string(&mut self.line_buff)?;
-            }
+    fn frame_vert_double() -> Self {
+        Self {
+            top_left_corner: "╓",
+            top_right_corner: "╖",
+            bottom_left_corner: "╙",
+            bottom_right_corner: "╜",
+            vert_left: "║",
+            vert_right: "║",
+            ..Self::default()
         }
+    }
 
-        self.expand = *(app.get_one("expand").unwrap_or(&0u8)) as usize;
-        self.expand_width = *(app.get_one("expand_width").unwrap_or(&0u8)) as usize;
-        self.max_line_len = self
-            .line_buff
-            .lines()
-            .map(|line| line.chars().count())
-            .max()
-            .ok_or("unknown maximum line length")?
-            + self.expand * 2
-            + self.expand_width * 2;
+    fn frame_round() -> Self {
+        Self {
+            top_left_corner: "╭",
+            top_right_corner: "╮",
+            bottom_left_corner: "╰",
+            bottom_right_corner: "╯",
+            ..Self::default()
+        }
+    }
 
-        self.hor_top_line = format!(
-            "{top_left}{hor_top}{top_right}",
-            top_left = self.get_top_left(),
-            hor_top = self.get_hor_top().to_string().repeat(self.max_line_len),
-            top_right = self.get_top_right()
-        );
+    fn frames(frame: &str) -> Self {
+        match frame {
+            "default" => Self::default(),
+            "empty" => Self::frame_empty(),
+            "double" => Self::frame_double(),
+            "hor-double" => Self::frame_hor_double(),
+            "vert-double" => Self::frame_vert_double(),
+            "round" => Self::frame_round(),
+            _ => Self::default(),
+        }
+    }
 
-        self.hor_bottom_line = format!(
-            "{bottom_left}{hor_bottom}{bottom_right}",
-            bottom_left = self.get_bottom_left(),
-            hor_bottom = self.get_hor_bottom().to_string().repeat(self.max_line_len),
-            bottom_right = self.get_bottom_right()
-        );
+    fn frame_text_algn(mut self, algn: &str) -> Self {
+        self.algn = match algn {
+            "left" => Algn::Left,
+            "centr" => Algn::Centr,
+            "right" => Algn::Right,
+            _ => Algn::Left,
+        };
+        self
+    }
 
-        self.color = if let Some(color) = app.get_one::<String>("color") {
-            match color.as_str() {
-                "red" => "red",
-                "green" => "green",
-                "yellow" => "yellow",
-                "blue" => "blue",
-                "magenta" => "magenta",
-                "cyan" => "cyan",
-                "white" => "white",
-                _ => "black",
-            }
+    fn from_args(
+        app: &'b ArgMatches,
+        encode_arr: &'b mut EncodeArr,
+    ) -> Result<Self, Box<dyn error::Error>> {
+        let frame = if let Some(frame) = app.get_one::<String>("frame") {
+            Self::frames(frame)
         } else {
-            "black"
+            Self::frames("default")
         };
 
-        Ok(())
-    }
+        let chr_right_bottom = &char::from_str(frame.bottom_right_corner)?;
+        let chr_hor_bottom = &char::from_str(frame.hor_bottom_line)?;
+        let chr_left_bottom = &char::from_str(frame.bottom_left_corner)?;
+        let chr_vert_right = &char::from_str(frame.vert_right)?;
+        let chr_vert_left = &char::from_str(frame.vert_left)?;
+        let chr_right_top = &char::from_str(frame.top_right_corner)?;
+        let chr_hor_top = &char::from_str(frame.hor_top_line)?;
+        let chr_left_top = &char::from_str(frame.top_left_corner)?;
+        let chr_fill = &char::from_str(frame.fill)?;
 
-    fn duble(&mut self) {
-        for (i, elem) in self.frame_variants.iter_mut().enumerate() {
-            *elem = ['╔', '╗', '═', '═', '║', '║', '╚', '╝', '╠', '╣'][i];
-        }
-    }
-
-    fn round(&mut self) {
-        for (i, elem) in self.frame_variants.iter_mut().enumerate() {
-            *elem = ['╭', '╮', '─', '─', '│', '│', '╰', '╯', '├', '┤'][i];
-        }
-    }
-
-    fn heavy(&mut self) {
-        for (i, elem) in self.frame_variants.iter_mut().enumerate() {
-            *elem = ['┏', '┓', '━', '━', '┃', '┃', '┗', '┛', '┣', '┫'][i];
-        }
-    }
-
-    fn torn(&mut self) {
-        for (i, elem) in self.frame_variants.iter_mut().enumerate() {
-            *elem = ['┏', '┓', '━', '━', '╏', '╏', '┗', '┛', '┣', '┫'][i];
-        }
-    }
-
-    fn variants(&mut self, app: &ArgMatches) {
-        if let Some(variants) = app.get_one::<String>("frame") {
-            match variants.as_str() {
-                "duble" => {
-                    self.duble();
-                }
-                "round" => {
-                    self.round();
-                }
-                "heavy" => {
-                    self.heavy();
-                }
-                "torn" => {
-                    self.torn();
-                }
-                _ => (),
+        Ok(Self {
+            top_left_corner: if let Some(chr) = app.get_one::<char>("top_left") {
+                chr
+            } else {
+                chr_left_top
             }
-        } else {
-            ()
-        }
+            .encode_utf8(&mut encode_arr.left_top),
+            hor_top_line: if let Some(chr) = app.get_one::<char>("horizontal_top") {
+                chr
+            } else {
+                chr_hor_top
+            }
+            .encode_utf8(&mut encode_arr.hor_top_line),
+            top_right_corner: if let Some(chr) = app.get_one::<char>("top_right") {
+                chr
+            } else {
+                chr_right_top
+            }
+            .encode_utf8(&mut encode_arr.right_top),
+            vert_left: if let Some(chr) = app.get_one::<char>("vert_left") {
+                chr
+            } else {
+                chr_vert_left
+            }
+            .encode_utf8(&mut encode_arr.vert_left),
+            vert_right: if let Some(chr) = app.get_one::<char>("vert_right") {
+                chr
+            } else {
+                chr_vert_right
+            }
+            .encode_utf8(&mut encode_arr.vert_right),
+            bottom_left_corner: if let Some(chr) = app.get_one::<char>("bottom_left") {
+                chr
+            } else {
+                chr_left_bottom
+            }
+            .encode_utf8(&mut encode_arr.left_bottom),
+            hor_bottom_line: if let Some(chr) = app.get_one::<char>("horizontal_bottom") {
+                chr
+            } else {
+                chr_hor_bottom
+            }
+            .encode_utf8(&mut encode_arr.hor_bottom_line),
+            bottom_right_corner: if let Some(chr) = app.get_one::<char>("bottom_right") {
+                chr
+            } else {
+                chr_right_bottom
+            }
+            .encode_utf8(&mut encode_arr.right_bottom),
+            fill: if let Some(chr) = app.get_one::<char>("fill") {
+                chr
+            } else {
+                chr_fill
+            }
+            .encode_utf8(&mut encode_arr.fill),
+            color: if let Some(color) = app.get_one::<String>("color") {
+                match color.as_str() {
+                    "red" => Color::Red,
+                    "green" => Color::Green,
+                    "yellow" => Color::Yellow,
+                    "blue" => Color::Blue,
+                    "Magenta" => Color::Magenta,
+                    "cyan" => Color::Cyan,
+                    "white" => Color::White,
+                    _ => Color::Black,
+                }
+            } else {
+                Color::Black
+            },
+            expand: if let Some(expand) = app.get_one::<u8>("expand") {
+                *expand as usize
+            } else {
+                0
+            },
+            expand_width: if let Some(expand_width) = app.get_one::<u8>("expand_width") {
+                *expand_width as usize
+            } else {
+                0
+            },
+            ..frame.frame_text_algn(if let Some(string) = app.get_one::<String>("alignment") {
+                string
+            } else {
+                "left"
+            })
+        })
     }
 
-    fn custom(&mut self, app: &ArgMatches) {
-        self.set_hor_top(*app.get_one("horizontal_top").unwrap_or(&self.get_hor_top()));
-        self.set_hor_bottom(
-            *app.get_one("horizontal_bottom")
-                .unwrap_or(&self.get_hor_bottom()),
-        );
-        self.set_vert_left(*app.get_one("vert_left").unwrap_or(&self.get_vert_left()));
-        self.set_vert_right(*app.get_one("vert_right").unwrap_or(&self.get_vert_right()));
-        self.set_top_left(*app.get_one("top_left").unwrap_or(&self.get_top_left()));
-        self.set_top_right(*app.get_one("top_right").unwrap_or(&self.get_top_right()));
-        self.set_fill(*app.get_one("fill").unwrap_or(&self.get_fill()));
-        self.set_bottom_left(
-            *app.get_one("bottom_left")
-                .unwrap_or(&self.get_bottom_left()),
-        );
-        self.set_bottom_right(
-            *app.get_one("bottom_right")
-                .unwrap_or(&self.get_bottom_right()),
-        );
-    }
+    fn frame_build<'a>(
+        &'a self,
+        text_buffer: &'a String,
+    ) -> impl Iterator<Item = ColoredString> + '_ {
+        let max_line_len = text_buffer.max_line_len((self.expand + self.expand_width) * 2);
 
-    fn get_top_left(&self) -> char {
-        self.frame_variants[0]
-    }
+        let enlarge_line_iter = iter::once(self.vert_left.color(self.color))
+            .chain(iter::repeat(self.fill.color("default")).take(max_line_len))
+            .chain(iter::once(self.vert_right.color(self.color)))
+            .chain(iter::once("\n".clear()))
+            .cycle()
+            .take((max_line_len + 3) * self.expand);
 
-    fn get_top_right(&self) -> char {
-        self.frame_variants[1]
-    }
+        let top_half_frame_iter = iter::once("\n".color("default"))
+            .chain(iter::once(self.top_left_corner.color(self.color)))
+            .chain(iter::repeat(self.hor_top_line.color(self.color)).take(max_line_len))
+            .chain(iter::once(self.top_right_corner.color(self.color)))
+            .chain(iter::once("\n".clear()))
+            .chain(enlarge_line_iter.clone());
 
-    fn get_hor_top(&self) -> char {
-        self.frame_variants[2]
-    }
+        let bottom_half_frame_iter = enlarge_line_iter
+            .chain(iter::once(self.bottom_left_corner.color(self.color)))
+            .chain(iter::repeat(self.hor_bottom_line.color(self.color)).take(max_line_len))
+            .chain(iter::once(self.bottom_right_corner.color(self.color)))
+            .chain(iter::once("\n".clear()).take(1));
 
-    fn get_hor_bottom(&self) -> char {
-        self.frame_variants[3]
-    }
+        let lines_buffer_iter = text_buffer.lines().flat_map(move |line| {
+            let curr_line_len = line.chars().count();
+            let algnment = match self.algn {
+                Algn::Left => (0, max_line_len - curr_line_len),
+                Algn::Centr => (
+                    (max_line_len - curr_line_len) / 2,
+                    (max_line_len - curr_line_len) - (max_line_len - curr_line_len) / 2,
+                ),
+                Algn::Right => (max_line_len - curr_line_len, 0),
+            };
 
-    fn get_vert_left(&self) -> char {
-        self.frame_variants[4]
-    }
+            let iter_top = iter::once(self.vert_left.color(self.color))
+                .chain(iter::repeat(self.fill.color("default")).take(algnment.0));
+            let iter_line = iter::once(line.color("default"));
+            let iter_bottom = iter::repeat(self.fill.color("default"))
+                .take(algnment.1)
+                .chain(iter::once(self.vert_right.color(self.color)))
+                .chain(iter::once("\n".color("default")));
 
-    fn get_vert_right(&self) -> char {
-        self.frame_variants[5]
-    }
+            iter_top.chain(iter_line).chain(iter_bottom)
+        });
 
-    fn get_bottom_left(&self) -> char {
-        self.frame_variants[6]
+        top_half_frame_iter
+            .chain(lines_buffer_iter)
+            .chain(bottom_half_frame_iter)
     }
+}
 
-    fn get_bottom_right(&self) -> char {
-        self.frame_variants[7]
-    }
+#[derive(Default)]
+struct EncodeArr {
+    left_top: [u8; 4],
+    hor_top_line: [u8; 4],
+    right_top: [u8; 4],
+    vert_left: [u8; 4],
+    vert_right: [u8; 4],
+    left_bottom: [u8; 4],
+    right_bottom: [u8; 4],
+    hor_bottom_line: [u8; 4],
+    fill: [u8; 4],
+}
 
-    fn get_vert_hor_left(&self) -> char {
-        self.frame_variants[8]
-    }
+trait MaxLineLen {
+    fn max_line_len(&self, expand: usize) -> usize;
+}
 
-    fn get_vert_hor_right(&self) -> char {
-        self.frame_variants[9]
+impl MaxLineLen for String {
+    fn max_line_len(&self, expand: usize) -> usize {
+        self.lines()
+            .map(|line| line.chars().count())
+            .max()
+            .unwrap_or(0)
+            + expand
     }
+}
 
-    fn get_fill(&self) -> char {
-        self.fill
-    }
-
-    fn set_fill(&mut self, c: char) {
-        self.fill = c;
-    }
-
-    fn set_top_left(&mut self, c: char) -> &Self {
-        self.frame_variants[0] = c;
-        self
-    }
-
-    fn set_top_right(&mut self, c: char) -> &Self {
-        self.frame_variants[1] = c;
-        self
-    }
-
-    fn set_hor_top(&mut self, c: char) -> &Self {
-        self.frame_variants[2] = c;
-        self
-    }
-
-    fn set_hor_bottom(&mut self, c: char) -> &Self {
-        self.frame_variants[3] = c;
-        self
-    }
-
-    fn set_vert_left(&mut self, c: char) -> &Self {
-        self.frame_variants[4] = c;
-        self
-    }
-
-    fn set_vert_right(&mut self, c: char) -> &Self {
-        self.frame_variants[5] = c;
-        self
-    }
-
-    fn set_bottom_left(&mut self, c: char) -> &Self {
-        self.frame_variants[6] = c;
-        self
-    }
-
-    fn set_bottom_right(&mut self, c: char) -> &Self {
-        self.frame_variants[7] = c;
-        self
-    }
-
-    fn set_vert_hor_left(&mut self, c: char) -> &Self {
-        self.frame_variants[8] = c;
-        self
-    }
-
-    fn set_vert_hor_right(&mut self, c: char) -> &Self {
-        self.frame_variants[9] = c;
-        self
-    }
+#[derive(Debug)]
+enum Algn {
+    Left,
+    Centr,
+    Right,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
+    let mut encode_arr = EncodeArr::default();
+    let mut text_buffer = String::new();
     let app = app_commands();
-    let mut frame = Frame::new();
-    frame.read(&app)?;
+    let frame = Frame::from_args(&app, &mut encode_arr)?;
 
-    let new_line = '\n';
-    let new_line_iter = iter::repeat(new_line).take(1);
-    let enlarge = (frame.max_line_len + 3) * frame.expand;
-    let enlarge_line_iter = iter::repeat(frame.get_vert_left())
-        .take(1)
-        .chain(iter::repeat(frame.fill).take(frame.max_line_len))
-        .chain(iter::repeat(frame.get_vert_right()).take(1))
-        .chain(new_line_iter.clone())
-        .cycle()
-        .take(enlarge);
+    read_input(&app, &mut text_buffer)?;
+    write_output(frame.frame_build(&text_buffer))?;
 
-    let hor_top_lin = iter::repeat(frame.get_top_left())
-        .take(1)
-        .chain(iter::repeat(frame.get_hor_top()).take(frame.max_line_len))
-        .chain(iter::repeat(frame.get_top_right()).take(1))
-        .chain(iter::repeat(new_line).take(1))
-        .chain(enlarge_line_iter.clone())
-        .collect::<String>();
+    Ok(())
+}
 
-    let hor_bottom_lin = enlarge_line_iter
-        .chain(iter::repeat(frame.get_bottom_left()).take(1))
-        .chain(iter::repeat(frame.get_hor_bottom()).take(frame.max_line_len))
-        .chain(iter::repeat(frame.get_bottom_right()).take(1))
-        .chain(iter::repeat(new_line).take(1))
-        .collect::<String>();
+fn read_input(app: &ArgMatches, text_buffer: &mut String) -> io::Result<()> {
+    match app.get_one::<PathBuf>("file") {
+        Some(path) => *text_buffer = fs::read_to_string(path)?,
+        None => {
+            std::io::stdin().lock().read_to_string(text_buffer)?;
+        }
+    }
 
-    let vrt_left = String::from(frame.get_vert_left()).color(frame.color);
-    let vrt_right = String::from(frame.get_vert_right()).color(frame.color);
+    Ok(())
+}
 
-    let empty_line = format!(
-        "{vrt_hor_left}{space_line}{vrt_hor_right}",
-        space_line = String::from(frame.get_hor_top())
-            .repeat(frame.max_line_len)
-            .color(frame.color),
-        vrt_hor_left = String::from(frame.get_vert_hor_left()).color(frame.color),
-        vrt_hor_right = String::from(frame.get_vert_hor_right()).color(frame.color),
-    );
-
-    frame.line_buff = format!(
-        "{hor_top_lin}{buff}{hor_bottom_lin}",
-        buff = frame.line_buff,
-    );
-
-    for current_line in frame.line_buff.lines() {
-        let current_line_len = current_line.chars().count();
-
-        let out_line = if frame.max_line_len < current_line_len {
-            format!("{current_line}\n")
-        } else if (current_line_len == 0) && app.get_flag("blank_line") {
-            format!("{empty_line}\n")
-        } else {
-            let mut left = 0;
-            let line_len = frame.max_line_len - current_line_len;
-
-            if let Some(aling) = app.get_one::<String>("alignment") {
-                match aling.as_str() {
-                    "centr" => left = line_len / 2,
-                    "right" => left = line_len,
-                    _ => left = 0,
-                }
-            }
-
-            format!(
-                "{vrt_left}{left_fill}{current_line}{right_fill}{vrt_right}\n",
-                left_fill = String::from(frame.fill).repeat(left),
-                right_fill = String::from(frame.fill).repeat(line_len - left),
-            )
-        };
-
-        std::io::stdout().write_all(out_line.as_bytes())?;
+fn write_output<I>(iter: I) -> io::Result<()>
+where
+    I: Iterator,
+    <I as IntoIterator>::Item: std::fmt::Display,
+{
+    let mut stdout = std::io::stdout().lock();
+    for out_line in iter {
+        write!(stdout, "{out_line}")?;
     }
 
     Ok(())
@@ -353,7 +370,15 @@ fn app_commands() -> ArgMatches {
                 .num_args(1)
                 .value_name("VARIANTS")
                 .help("Text frame variants")
-                .value_parser(["duble", "round", "heavy", "torn"])
+                .value_parser([
+                    "empty",
+                    "double",
+                    "hor-double",
+                    "vert-double",
+                    "round",
+                    "heavy",
+                    "torn",
+                ])
                 .required(false),
         )
         .arg(
@@ -363,8 +388,7 @@ fn app_commands() -> ArgMatches {
                 .num_args(1)
                 .value_name("ALINGMENT")
                 .help("Frame text alingment")
-                .value_parser(["centr", "right"])
-                //.hide_possible_values(true)
+                .value_parser(["left", "centr", "right"])
                 .required(false),
         )
         .arg(
@@ -372,7 +396,7 @@ fn app_commands() -> ArgMatches {
                 .long("expand")
                 .num_args(1)
                 .value_name("NUMBER")
-                .value_parser(value_parser!(u8).range(1..100))
+                .value_parser(value_parser!(u8).range(1..255))
                 .help("Enlarge frame")
                 .required(false),
         )
@@ -381,7 +405,7 @@ fn app_commands() -> ArgMatches {
                 .long("expand-width")
                 .num_args(1)
                 .value_name("NUMBER")
-                .value_parser(value_parser!(u8).range(1..100))
+                .value_parser(value_parser!(u8).range(1..255))
                 .help("Enlarge frame width")
                 .required(false),
         )
@@ -391,6 +415,7 @@ fn app_commands() -> ArgMatches {
                 .num_args(1)
                 .value_name("CHARACTER")
                 .value_parser(value_parser!(char))
+                .default_value(" ")
                 .help("Sets the fill character")
                 .required(false),
         )
@@ -473,21 +498,15 @@ fn app_commands() -> ArgMatches {
                 .required(false),
         )
         .arg(
-            Arg::new("blank_line")
-                .short('b')
-                .long("blank")
-                .action(clap::ArgAction::SetTrue)
-                .help("Insert into blank line")
-                .num_args(0)
-                .required(false),
-        )
-        .arg(
             Arg::new("color")
                 .short('c')
                 .long("color")
                 .value_name("COLOR")
                 .help("Displays a text frame in the specified color")
-                .value_parser(["red", "green", "yellow", "blue", "magenta", "cyan", "white"])
+                .value_parser([
+                    "black", "red", "green", "yellow", "blue", "magenta", "cyan", "white",
+                ])
+                .default_value("black")
                 .required(false),
         )
         .arg(
