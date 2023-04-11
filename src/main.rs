@@ -384,9 +384,9 @@ fn app_commands() -> ArgMatches {
         .arg(
             Arg::new("alignment")
                 .short('a')
-                .long("align")
+                .long("algn")
                 .num_args(1)
-                .value_name("ALINGMENT")
+                .value_name("ALIGNMENT")
                 .help("Frame text alingment")
                 .value_parser(["left", "centr", "right"])
                 .required(false),
