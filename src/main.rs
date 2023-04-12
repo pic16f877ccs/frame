@@ -95,6 +95,14 @@ impl<'b> Frame<'b> {
         }
     }
 
+    fn frame_torn() -> Self {
+        Self {
+            vert_left: "┆",
+            vert_right: "┆",
+            ..Self::default()
+        }
+    }
+
     fn frame_round() -> Self {
         Self {
             top_left_corner: "╭",
@@ -113,6 +121,7 @@ impl<'b> Frame<'b> {
             "hor-double" => Self::frame_hor_double(),
             "vert-double" => Self::frame_vert_double(),
             "round" => Self::frame_round(),
+            "torn" => Self::frame_torn(),
             _ => Self::default(),
         }
     }
@@ -208,7 +217,7 @@ impl<'b> Frame<'b> {
                     "green" => Color::Green,
                     "yellow" => Color::Yellow,
                     "blue" => Color::Blue,
-                    "Magenta" => Color::Magenta,
+                    "magenta" => Color::Magenta,
                     "cyan" => Color::Cyan,
                     "white" => Color::White,
                     _ => Color::Black,
