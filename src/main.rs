@@ -6,6 +6,7 @@ use std::io::{self, Read, Write};
 use std::iter;
 use std::path::PathBuf;
 use std::str::FromStr;
+use terminal_size::{Width, terminal_size};
 
 impl Default for Frame<'_> {
     fn default() -> Self {
@@ -20,6 +21,7 @@ impl Default for Frame<'_> {
             hor_bottom_line: "─",
             fill: " ",
             algn: Algn::Left,
+            centr: 0,
             expand: 0,
             expand_width: 0,
             color: Color::Black,
@@ -39,6 +41,7 @@ struct Frame<'a> {
     hor_bottom_line: &'a str,
     fill: &'a str,
     algn: Algn,
+    centr: usize,
     expand: usize,
     expand_width: usize,
     color: Color,
@@ -235,6 +238,7 @@ impl<'b> Frame<'b> {
             } else {
                 0
             },
+            centr: if app.get_flag("frame_centr") { if let Some((Width(w), _)) = terminal_size() { w as usize } else { 0 } } else { 0 },
             ..frame.frame_text_algn(if let Some(string) = app.get_one::<String>("alignment") {
                 string
             } else {
@@ -248,15 +252,18 @@ impl<'b> Frame<'b> {
         text_buffer: &'a String,
     ) -> impl Iterator<Item = ColoredString> + '_ {
         let max_line_len = text_buffer.max_line_len((self.expand + self.expand_width) * 2);
+        let centr = if self.centr > max_line_len { (self.centr - max_line_len) / 2 } else { 0 };
 
-        let enlarge_line_iter = iter::once(self.vert_left.color(self.color))
+        let enlarge_line_iter = iter::repeat(" ".clear()).take(centr) 
+            .chain(iter::once(self.vert_left.color(self.color)))
             .chain(iter::repeat(self.fill.color("default")).take(max_line_len))
             .chain(iter::once(self.vert_right.color(self.color)))
             .chain(iter::once("\n".clear()))
             .cycle()
-            .take((max_line_len + 3) * self.expand);
+            .take((max_line_len + 3 + centr) * self.expand);
 
         let top_half_frame_iter = iter::once("\n".color("default"))
+            .chain(iter::repeat(" ".clear()).take(centr))
             .chain(iter::once(self.top_left_corner.color(self.color)))
             .chain(iter::repeat(self.hor_top_line.color(self.color)).take(max_line_len))
             .chain(iter::once(self.top_right_corner.color(self.color)))
@@ -264,10 +271,11 @@ impl<'b> Frame<'b> {
             .chain(enlarge_line_iter.clone());
 
         let bottom_half_frame_iter = enlarge_line_iter
+            .chain(iter::repeat(" ".clear()).take(centr))
             .chain(iter::once(self.bottom_left_corner.color(self.color)))
             .chain(iter::repeat(self.hor_bottom_line.color(self.color)).take(max_line_len))
             .chain(iter::once(self.bottom_right_corner.color(self.color)))
-            .chain(iter::once("\n".clear()).take(1));
+            .chain(iter::once("\n".clear()));
 
         let lines_buffer_iter = text_buffer.lines().flat_map(move |line| {
             let curr_line_len = line.chars().count();
@@ -280,7 +288,8 @@ impl<'b> Frame<'b> {
                 Algn::Right => (max_line_len - curr_line_len, 0),
             };
 
-            let iter_top = iter::once(self.vert_left.color(self.color))
+            let iter_top = iter::repeat(" ".clear()).take(centr)
+                .chain(iter::once(self.vert_left.color(self.color)))
                 .chain(iter::repeat(self.fill.color("default")).take(algnment.0));
             let iter_line = iter::once(line.color("default"));
             let iter_bottom = iter::repeat(self.fill.color("default"))
@@ -388,6 +397,15 @@ fn app_commands() -> ArgMatches {
                     "heavy",
                     "torn",
                 ])
+                .required(false),
+        )
+        .arg(
+            Arg::new("frame_centr")
+                .long("centered")
+                .action(clap::ArgAction::SetTrue)
+                .value_name("ALIGNMENT")
+                //.num_args(0)
+                .help("Display frame centered")
                 .required(false),
         )
         .arg(
