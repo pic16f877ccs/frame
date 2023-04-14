@@ -6,7 +6,8 @@ use std::io::{self, Read, Write};
 use std::iter;
 use std::path::PathBuf;
 use std::str::FromStr;
-use terminal_size::{Width, terminal_size};
+use terminal_size::{terminal_size, Height, Width};
+use textwrap::fill_inplace;
 
 impl Default for Frame<'_> {
     fn default() -> Self {
@@ -21,10 +22,12 @@ impl Default for Frame<'_> {
             hor_bottom_line: "─",
             fill: " ",
             algn: Algn::Left,
-            centr: 0,
+            term_size: 0,
+            auto_width: false,
             expand: 0,
             expand_width: 0,
             color: Color::Black,
+            path: None,
         }
     }
 }
@@ -41,10 +44,12 @@ struct Frame<'a> {
     hor_bottom_line: &'a str,
     fill: &'a str,
     algn: Algn,
-    centr: usize,
+    term_size: usize,
+    auto_width: bool,
     expand: usize,
     expand_width: usize,
     color: Color,
+    path: Option<PathBuf>,
 }
 
 impl<'b> Frame<'b> {
@@ -129,21 +134,20 @@ impl<'b> Frame<'b> {
         }
     }
 
-    fn frame_text_algn(mut self, algn: &str) -> Self {
-        self.algn = match algn {
+    fn frame_text_algn(algn: &str) -> Algn {
+        match algn {
             "left" => Algn::Left,
             "centr" => Algn::Centr,
             "right" => Algn::Right,
             _ => Algn::Left,
-        };
-        self
+        }
     }
 
     fn from_args(
         app: &'b ArgMatches,
         encode_arr: &'b mut EncodeArr,
     ) -> Result<Self, Box<dyn error::Error>> {
-        let frame = if let Some(frame) = app.get_one::<String>("frame") {
+        let mut frame = if let Some(frame) = app.get_one::<String>("frame") {
             Self::frames(frame)
         } else {
             Self::frames("default")
@@ -158,6 +162,12 @@ impl<'b> Frame<'b> {
         let chr_hor_top = &char::from_str(frame.hor_top_line)?;
         let chr_left_top = &char::from_str(frame.top_left_corner)?;
         let chr_fill = &char::from_str(frame.fill)?;
+        if let Some((Width(w), _)) = terminal_size() {
+            frame.term_size = w as usize;
+            if app.get_flag("auto_width") {
+                frame.auto_width = true
+            }
+        };
 
         Ok(Self {
             top_left_corner: if let Some(chr) = app.get_one::<char>("top_left") {
@@ -238,23 +248,37 @@ impl<'b> Frame<'b> {
             } else {
                 0
             },
-            centr: if app.get_flag("frame_centr") { if let Some((Width(w), _)) = terminal_size() { w as usize } else { 0 } } else { 0 },
-            ..frame.frame_text_algn(if let Some(string) = app.get_one::<String>("alignment") {
-                string
+            algn: Frame::frame_text_algn(
+                if let Some(string) = app.get_one::<String>("alignment") {
+                    string
+                } else {
+                    "left"
+                },
+            ),
+            path: if let Some(path) = app.get_one::<PathBuf>("file") {
+                Some(path.to_path_buf())
             } else {
-                "left"
-            })
+                None
+            },
+            ..frame
         })
     }
 
     fn frame_build<'a>(
         &'a self,
-        text_buffer: &'a String,
+        text_buffer: &'a mut String,
     ) -> impl Iterator<Item = ColoredString> + '_ {
-        let max_line_len = text_buffer.max_line_len((self.expand + self.expand_width) * 2);
-        let centr = if self.centr > max_line_len { (self.centr - max_line_len) / 2 } else { 0 };
+        let max_line_len = if self.auto_width {
+            let max_len = self.term_size - 2;
+            fill_inplace(text_buffer, max_len);
+            max_len
+        } else {
+            text_buffer.max_line_len((self.expand + self.expand_width) * 2)
+        };
 
-        let enlarge_line_iter = iter::repeat(" ".clear()).take(centr) 
+        let centr = 0;
+        let enlarge_line_iter = iter::repeat(" ".clear())
+            .take(centr)
             .chain(iter::once(self.vert_left.color(self.color)))
             .chain(iter::repeat(self.fill.color("default")).take(max_line_len))
             .chain(iter::once(self.vert_right.color(self.color)))
@@ -288,7 +312,8 @@ impl<'b> Frame<'b> {
                 Algn::Right => (max_line_len - curr_line_len, 0),
             };
 
-            let iter_top = iter::repeat(" ".clear()).take(centr)
+            let iter_top = iter::repeat(" ".clear())
+                .take(centr)
                 .chain(iter::once(self.vert_left.color(self.color)))
                 .chain(iter::repeat(self.fill.color("default")).take(algnment.0));
             let iter_line = iter::once(line.color("default"));
@@ -346,15 +371,17 @@ fn main() -> Result<(), Box<dyn Error>> {
     let app = app_commands();
     let frame = Frame::from_args(&app, &mut encode_arr)?;
 
-    read_input(&app, &mut text_buffer)?;
-    write_output(frame.frame_build(&text_buffer))?;
+    read_input(&frame, &mut text_buffer)?;
+    write_output(frame.frame_build(&mut text_buffer))?;
 
     Ok(())
 }
 
-fn read_input(app: &ArgMatches, text_buffer: &mut String) -> io::Result<()> {
-    match app.get_one::<PathBuf>("file") {
-        Some(path) => *text_buffer = fs::read_to_string(path)?,
+fn read_input(frame: &Frame, text_buffer: &mut String) -> io::Result<()> {
+    match &frame.path {
+        Some(path) => {
+            *text_buffer = fs::read_to_string(path)?;
+        }
         None => {
             std::io::stdin().lock().read_to_string(text_buffer)?;
         }
@@ -400,11 +427,11 @@ fn app_commands() -> ArgMatches {
                 .required(false),
         )
         .arg(
-            Arg::new("frame_centr")
-                .long("centered")
+            Arg::new("auto_width")
+                .long("auto-width")
                 .action(clap::ArgAction::SetTrue)
                 .value_name("ALIGNMENT")
-                //.num_args(0)
+                .num_args(0)
                 .help("Display frame centered")
                 .required(false),
         )
