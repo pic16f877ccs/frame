@@ -7,3 +7,4 @@ edition = "2021"
 clap = { version = "4.1.9" }
 colored = "2.0.0"
 terminal_size = "0.2.6"
+textwrap = "0.16.0"
