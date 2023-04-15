@@ -6,7 +6,7 @@ use std::io::{self, Read, Write};
 use std::iter;
 use std::path::PathBuf;
 use std::str::FromStr;
-use terminal_size::{terminal_size, Height, Width};
+use terminal_size::{terminal_size, Width};
 use textwrap::fill_inplace;
 
 impl Default for Frame<'_> {
@@ -262,11 +262,7 @@ impl<'b> Frame<'b> {
                     "left"
                 },
             ),
-            path: if let Some(path) = app.get_one::<PathBuf>("file") {
-                Some(path.to_path_buf())
-            } else {
-                None
-            },
+            path: app.get_one::<PathBuf>("file").map(|path| path.to_path_buf()),
             ..frame
         })
     }
