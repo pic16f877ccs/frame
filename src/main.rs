@@ -23,6 +23,7 @@ impl Default for Frame<'_> {
             fill: " ",
             algn: Algn::Left,
             term_size: 0,
+            frame_centr: false,
             auto_width: false,
             expand: 0,
             expand_width: 0,
@@ -45,6 +46,7 @@ struct Frame<'a> {
     fill: &'a str,
     algn: Algn,
     term_size: usize,
+    frame_centr: bool,
     auto_width: bool,
     expand: usize,
     expand_width: usize,
@@ -164,8 +166,13 @@ impl<'b> Frame<'b> {
         let chr_fill = &char::from_str(frame.fill)?;
         if let Some((Width(w), _)) = terminal_size() {
             frame.term_size = w as usize;
+
             if app.get_flag("auto_width") {
                 frame.auto_width = true
+            }
+
+            if app.get_flag("frame_centr") {
+                frame.frame_centr = true
             }
         };
 
@@ -276,7 +283,11 @@ impl<'b> Frame<'b> {
             text_buffer.max_line_len((self.expand + self.expand_width) * 2)
         };
 
-        let centr = 0;
+        let centr = if self.frame_centr {
+            (self.term_size - max_line_len) / 2
+        } else {
+            0
+        };
         let enlarge_line_iter = iter::repeat(" ".clear())
             .take(centr)
             .chain(iter::once(self.vert_left.color(self.color)))
@@ -429,6 +440,16 @@ fn app_commands() -> ArgMatches {
         .arg(
             Arg::new("auto_width")
                 .long("auto-width")
+                .action(clap::ArgAction::SetTrue)
+                .conflicts_with("frame_centr")
+                .value_name("ALIGNMENT")
+                .num_args(0)
+                .help("Full width frame")
+                .required(false),
+        )
+        .arg(
+            Arg::new("frame_centr")
+                .long("centered")
                 .action(clap::ArgAction::SetTrue)
                 .value_name("ALIGNMENT")
                 .num_args(0)
