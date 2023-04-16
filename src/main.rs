@@ -293,13 +293,13 @@ impl<'b> Frame<'b> {
         let enlarge_line_iter = iter::repeat(" ".clear())
             .take(centr)
             .chain(iter::once(self.vert_left.color(self.color)))
-            .chain(iter::repeat(self.fill.color("default")).take(max_line_len))
+            .chain(iter::repeat(self.fill.clear()).take(max_line_len))
             .chain(iter::once(self.vert_right.color(self.color)))
             .chain(iter::once("\n".clear()))
             .cycle()
             .take((max_line_len + 3 + centr) * self.expand);
 
-        let top_half_frame_iter = iter::once("\n".color("default"))
+        let top_half_frame_iter = iter::once("\n".clear())
             .chain(iter::repeat(" ".clear()).take(centr))
             .chain(iter::once(self.top_left_corner.color(self.color)))
             .chain(iter::repeat(self.hor_top_line.color(self.color)).take(max_line_len))
@@ -328,12 +328,12 @@ impl<'b> Frame<'b> {
             let iter_top = iter::repeat(" ".clear())
                 .take(centr)
                 .chain(iter::once(self.vert_left.color(self.color)))
-                .chain(iter::repeat(self.fill.color("default")).take(algnment.0));
-            let iter_line = iter::once(line.color("default"));
-            let iter_bottom = iter::repeat(self.fill.color("default"))
+                .chain(iter::repeat(self.fill.clear()).take(algnment.0));
+            let iter_line = iter::once(line.clear());
+            let iter_bottom = iter::repeat(self.fill.clear())
                 .take(algnment.1)
                 .chain(iter::once(self.vert_right.color(self.color)))
-                .chain(iter::once("\n".color("default")));
+                .chain(iter::once("\n".clear()));
 
             iter_top.chain(iter_line).chain(iter_bottom)
         });
