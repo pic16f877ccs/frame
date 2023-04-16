@@ -14,10 +14,20 @@ Build and install with Rust package manager.
 cargo install frame
 ```
 ### Usage:
-```console
-frame --auto-width -a'centr' -c'cyan' ./file
 
-frame --centered -a'centr' -c'cyan' ./file
+```console
+frame -f'double' -c'cyan' ./file
 ```
+#### Double frame option
+
+<img src="img/frame_double.png" width=60% height=60%>
+
+```console
+frame -a'centr' -c'magenta' ./file
+```
+#### Justify text centered
+
+<img src="img/frame_centr.png" width=60% height=60%>
+
 ## License
 GNU General Public License v3.0
