@@ -262,7 +262,9 @@ impl<'b> Frame<'b> {
                     "left"
                 },
             ),
-            path: app.get_one::<PathBuf>("file").map(|path| path.to_path_buf()),
+            path: app
+                .get_one::<PathBuf>("file")
+                .map(|path| path.to_path_buf()),
             ..frame
         })
     }
@@ -280,7 +282,11 @@ impl<'b> Frame<'b> {
         };
 
         let centr = if self.frame_centr {
-            (self.term_size - max_line_len) / 2
+            if max_line_len < self.term_size {
+                (self.term_size - max_line_len) / 2
+            } else {
+                0
+            }
         } else {
             0
         };
