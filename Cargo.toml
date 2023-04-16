@@ -2,6 +2,14 @@
 name = "frame"
 version = "0.3.2"
 edition = "2021"
+authors = ["Karl Wulfert <pic16f877.ccs@emailn.de>"]
+readme = "README.md"
+repository = "https://github.com/pic16f877ccs/frame"
+homepage = "https://github.com/pic16f877ccs/frame"
+license = "GPL-3.0-or-later"
+description = "Display text in a frame"
+keywords = ["text", "format", "text-frame"]
+categories = ["command-line-utilities"]
 
 [dependencies]
 clap = { version = "4.1.9" }
