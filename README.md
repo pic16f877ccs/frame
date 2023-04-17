@@ -13,6 +13,11 @@ Build and install with Rust package manager.
 ```console
 cargo install frame
 ```
+Installing the [package](https://github.com/pic16f877ccs/frame/releases/download/v0.3.3/frame_0.3.3_amd64.deb) using the Ubuntu package manager.
+```console
+sudo apt install ./frame_0.3.3_amd64.deb
+```
+
 ### Usage:
 
 ```console
