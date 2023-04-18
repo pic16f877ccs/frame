@@ -27,7 +27,7 @@ impl Default for Frame<'_> {
             auto_width: false,
             expand: 0,
             expand_width: 0,
-            color: Color::Black,
+            color: Color::White,
             path: None,
         }
     }
@@ -239,11 +239,11 @@ impl<'b> Frame<'b> {
                     "blue" => Color::Blue,
                     "magenta" => Color::Magenta,
                     "cyan" => Color::Cyan,
-                    "white" => Color::White,
-                    _ => Color::Black,
+                    "black" => Color::Black,
+                    _ => Color::White,
                 }
             } else {
-                Color::Black
+                Color::White
             },
             expand: if let Some(expand) = app.get_one::<u8>("expand") {
                 *expand as usize
@@ -290,6 +290,7 @@ impl<'b> Frame<'b> {
         } else {
             0
         };
+
         let enlarge_line_iter = iter::repeat(" ".clear())
             .take(centr)
             .chain(iter::once(self.vert_left.color(self.color)))
@@ -583,7 +584,6 @@ fn app_commands() -> ArgMatches {
                 .value_parser([
                     "black", "red", "green", "yellow", "blue", "magenta", "cyan", "white",
                 ])
-                .default_value("black")
                 .required(false),
         )
         .arg(
