@@ -13,9 +13,9 @@ Build and install with Rust package manager.
 ```console
 cargo install frame
 ```
-Installing the [package](https://github.com/pic16f877ccs/frame/releases/download/v0.3.4/frame_0.3.4_amd64.deb) using the Ubuntu package manager.
+Installing the [package](https://github.com/pic16f877ccs/frame/releases/download/v0.3.5/frame_0.3.5_amd64.deb) using the Ubuntu package manager.
 ```console
-sudo apt install ./frame_0.3.4_amd64.deb
+sudo apt install ./frame_0.3.5_amd64.deb
 ```
 
 ### Usage:
