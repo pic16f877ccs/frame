@@ -1,6 +1,6 @@
 [package]
 name = "frame"
-version = "0.3.4"
+version = "0.3.5"
 edition = "2021"
 authors = ["Karl Wulfert <pic16f877.ccs@emailn.de>"]
 readme = "README.md"
@@ -12,7 +12,7 @@ keywords = ["text", "format", "text-frame"]
 categories = ["command-line-utilities"]
 
 [dependencies]
-clap = { version = "4.1.9" }
+clap = { version = "4.1.9", features = ["cargo"] }
 colored = "2.0.0"
 terminal_size = "0.2.6"
 textwrap = "0.16.0"
