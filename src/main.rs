@@ -1,4 +1,5 @@
 use clap::{value_parser, Arg, ArgMatches, Command};
+use clap::crate_version;
 use colored::{Color, ColoredString, Colorize};
 use std::error::{self, Error};
 use std::fs;
@@ -420,6 +421,7 @@ where
 fn app_commands() -> ArgMatches {
     Command::new("frame")
         .about("    frame for text")
+        .long_version(crate_version!())
         .author("    by PIC16F877ccs")
         .args_override_self(true)
         .arg(
@@ -538,7 +540,7 @@ fn app_commands() -> ArgMatches {
         )
         .arg(
             Arg::new("vert_left")
-                .short('V')
+                .short('v')
                 .long("vert-left")
                 .help("Sets the view of vertical left line")
                 .value_parser(value_parser!(char))
