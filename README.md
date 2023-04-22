@@ -13,6 +13,10 @@ Build and install with Rust package manager.
 ```console
 cargo install frame
 ```
+Installing the [package](https://github.com/pic16f877ccs/flltr/releases/download/v0.3.5/frame-0.3.5_x86_64.pkg.tar.zst) using the Arch package manager.
+```console
+sudo pacman -U ./frame-0.3.5_x86_64.pkg.tar.zst
+```
 Installing the [package](https://github.com/pic16f877ccs/frame/releases/download/v0.3.5/frame_0.3.5_amd64.deb) using the Ubuntu package manager.
 ```console
 sudo apt install ./frame_0.3.5_amd64.deb
