@@ -274,12 +274,14 @@ impl<'b> Frame<'b> {
         &'a self,
         text_buffer: &'a mut String,
     ) -> impl Iterator<Item = ColoredString> + '_ {
+
+        let sum_expands = self.expand_width + self.expand;
         let max_line_len = if self.auto_width {
             let max_len = self.term_size - 2;
             fill_inplace(text_buffer, max_len);
             max_len
         } else {
-            text_buffer.max_line_len((self.expand + self.expand_width) * 2)
+            text_buffer.max_line_len(sum_expands * 2)
         };
 
         let centr = if self.frame_centr {
@@ -318,13 +320,15 @@ impl<'b> Frame<'b> {
 
         let lines_buffer_iter = text_buffer.lines().flat_map(move |line| {
             let curr_line_len = line.chars().count();
+            let max_line_diff = max_line_len - curr_line_len;
+
             let algnment = match self.algn {
-                Algn::Left => (0, max_line_len - curr_line_len),
+                Algn::Left => (sum_expands, max_line_diff - sum_expands),
                 Algn::Centr => (
-                    (max_line_len - curr_line_len) / 2,
-                    (max_line_len - curr_line_len) - (max_line_len - curr_line_len) / 2,
+                    max_line_diff / 2,
+                    max_line_diff - max_line_diff / 2,
                 ),
-                Algn::Right => (max_line_len - curr_line_len, 0),
+                Algn::Right => (max_line_diff - sum_expands, sum_expands),
             };
 
             let iter_top = iter::repeat(" ".clear())
